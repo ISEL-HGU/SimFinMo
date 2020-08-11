@@ -13,11 +13,11 @@ import org.apache.commons.csv.CSVRecord;
 
 public class ResultParser {
 	
-	enum Measure{Precision,Recall, F1};
-	Measure measure = Measure.F1;
-	double initialCutoff = 0.005;
+	enum Measure{Precision,Recall, F1, TP};
+	Measure measure = Measure.TP;
+	double initialCutoff = 0.001;
 	double increment = 0.001;
-	double maxCutoff = 1.0;
+	double maxCutoff = 0.4;
 	
 	int kOffset = 2;
 	int maxK = 2;
@@ -29,7 +29,7 @@ public class ResultParser {
 	}
 
 	private void run() {
-		String resultFilePath = "data" + File.separator + "sqoop_result.csv";
+		String resultFilePath = "data" + File.separator + "opennlp_result.csv";
 		
 		HashMap<String,ArrayList<SimFinData>> data = new HashMap<String,ArrayList<SimFinData>>();
 		ArrayList<String> keys = new ArrayList<String>();
@@ -84,7 +84,7 @@ public class ResultParser {
 		}
 	}
 
-	private double evaluate(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset, int k, double cutoff, Measure type) {
+	private String evaluate(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset, int k, double cutoff, Measure type) {
 
 		int TP = 0; // 1 -> 1
 		int FP = 0; // 0 -> 1
@@ -118,15 +118,15 @@ public class ResultParser {
 		double f1 = (2*precision*recall)/(precision+recall);
 		
 		if(type == Measure.F1)
-			return f1;
+			return f1 + "";
 		
 		if(type == Measure.Precision)
-			return precision;
+			return precision + "" + "";
 		
 		if(type == Measure.Recall)
-			return recall;
+			return recall + "";
 		
-		return f1;
+		return TP + "-" + FP + "-" + FN + "-" + TN + "-" + precision + "-" + recall +"-" + f1;
 	}
 
 	private double averageDistance(ArrayList<SimFinData> simFinData, int kOffset, int k) {
