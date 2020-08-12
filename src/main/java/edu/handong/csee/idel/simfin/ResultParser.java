@@ -17,9 +17,9 @@ public class ResultParser {
 	Measure measure = Measure.TP;
 	double initialCutoff = 0.001;
 	double increment = 0.01;
-	double maxCutoff = 1.0;
-	String folder = "";
-	//String folder = "nonezero";
+	double maxCutoff = 3.0;
+	//String folder = "";
+	String folder = "nonezero";
 	
 	int kOffset = 2;
 	int maxK = 2;
@@ -31,7 +31,7 @@ public class ResultParser {
 	}
 
 	private void run() {
-		String resultFilePath = "data" + File.separator + folder + File.separator + "opennlp_result.csv";
+		String resultFilePath = "data" + File.separator + folder + File.separator + "maven_result.csv";
 		
 		HashMap<String,ArrayList<SimFinData>> data = new HashMap<String,ArrayList<SimFinData>>();
 		ArrayList<String> keys = new ArrayList<String>();
@@ -118,7 +118,7 @@ public class ResultParser {
 		double precision = TP/((double)TP+FP);
 		double recall = TP/((double)TP+FN);
 		double f1 = (2*precision*recall)/(precision+recall);
-		double mcc = (TP*TN-FP*FN)/Math.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN));
+		double mcc = (double)(TP*TN-FP*FN)/(Math.sqrt((double)(TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)));
 		
 		if(type == Measure.F1)
 			return f1 + "";
