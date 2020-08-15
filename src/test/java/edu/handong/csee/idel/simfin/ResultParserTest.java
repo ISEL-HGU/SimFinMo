@@ -23,5 +23,23 @@ public class ResultParserTest {
 		ResultParser.main(args);
 		
 	}
+	
+	@Test
+	public void testJackrabbit() {
+		
+		String[] args = {"data/jackrabbit_result.csv", "0.01", "0.01", "1", "2"}; // 1: data path, 2: initial cutoff, 3: cutoff increment, 4: max cutoff, 5: target rank
+		
+		ResultParser.main(args);
+		
+	}
+	
+	@Test
+	public void testJena() {
+		
+		String[] args = {"data/jena_result.csv", "0.01", "0.01", "1", "2"}; // 1: data path, 2: initial cutoff, 3: cutoff increment, 4: max cutoff, 5: target rank
+		
+		ResultParser.main(args);
+		
+	}
 
 }
