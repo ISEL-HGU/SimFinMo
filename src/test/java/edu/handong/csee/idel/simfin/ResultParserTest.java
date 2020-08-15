@@ -9,7 +9,7 @@ public class ResultParserTest {
 	@Test
 	public void testOpennlp() {
 		
-		String[] args = {"data/opennlp_result.csv", "0.01", "0.01", "1", "2"}; // 1: data path, 2: initial cutoff, 3: cutoff increment, 4: max cutoff, 5: target rank
+		String[] args = {"/Users/jihoshin/Desktop/no_zeros_original/opennlp_result.csv", "0.01", "0.01", "1", "2"}; // 1: data path, 2: initial cutoff, 3: cutoff increment, 4: max cutoff, 5: target rank
 		
 		ResultParser.main(args);
 		
