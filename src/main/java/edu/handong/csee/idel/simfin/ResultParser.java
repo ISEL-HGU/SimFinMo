@@ -14,24 +14,29 @@ import org.apache.commons.csv.CSVRecord;
 public class ResultParser {
 	
 	enum Measure{Precision,Recall, F1, TP};
-	Measure measure = Measure.TP;
+	//Measure measure = Measure.TP;
 	double initialCutoff = 0.001;
 	double increment = 0.01;
 	double maxCutoff = 3.0;
 	//String folder = "";
-	String folder = "nonezero";
+	//String folder = "nonezero";
 	
-	int kOffset = 2;
-	int maxK = 2;
+	int kOffset = 1;
+	int maxK = 1;
 
 	public static void main(String[] args) {
 		
-		new ResultParser().run();
+		new ResultParser().run(args);
 
 	}
 
-	private void run() {
-		String resultFilePath = "data" + File.separator + folder + File.separator + "maven_result.csv";
+	private void run(String[] args) {
+		String resultFilePath = args[0]; //"data" + File.separator + folder + File.separator + "maven_result.csv";
+		initialCutoff = Double.parseDouble(args[1]);
+		increment = Double.parseDouble(args[2]);
+		maxCutoff = Double.parseDouble(args[3]);
+		kOffset = Integer.parseInt(args[4]);
+		maxK = kOffset; // just consider only one rank
 		
 		HashMap<String,ArrayList<SimFinData>> data = new HashMap<String,ArrayList<SimFinData>>();
 		ArrayList<String> keys = new ArrayList<String>();
@@ -73,7 +78,7 @@ public class ResultParser {
 				System.out.print(cutoff);
 				for(int k=kOffset; k <= maxK; k++) {
 					//System.out.println(k);
-					System.out.print("," + evaluate(keys, data, kOffset,k, cutoff, measure));
+					System.out.print("," + evaluate(keys, data, kOffset,k, cutoff));
 				}
 				System.out.println();
 			}
@@ -86,7 +91,7 @@ public class ResultParser {
 		}
 	}
 
-	private String evaluate(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset, int k, double cutoff, Measure type) {
+	private String evaluate(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset, int k, double cutoff) {
 
 		int TP = 0; // 1 -> 1
 		int FP = 0; // 0 -> 1
@@ -119,15 +124,6 @@ public class ResultParser {
 		double recall = TP/((double)TP+FN);
 		double f1 = (2*precision*recall)/(precision+recall);
 		double mcc = (double)(TP*TN-FP*FN)/(Math.sqrt((double)(TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)));
-		
-		if(type == Measure.F1)
-			return f1 + "";
-		
-		if(type == Measure.Precision)
-			return precision + "" + "";
-		
-		if(type == Measure.Recall)
-			return recall + "";
 		
 		return TP + "," + FP + "," + FN + "," + TN + "," + precision + "," + recall +"," + f1+"," + mcc;
 	}
