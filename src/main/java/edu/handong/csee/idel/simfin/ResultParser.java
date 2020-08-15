@@ -66,11 +66,8 @@ public class ResultParser {
 			    }
 			}
 			
-			System.out.print("cutoff");
-			for(int k=kOffset; k <= maxK; k++) {
-				System.out.print("," + k);	
-			}
-			System.out.println();	
+			// header
+			System.out.print("cutoff-rank" + kOffset + "TP,FP,FN,TN,precision,recall,f1,mcc");	
 			
 			for(double cutoff = initialCutoff; cutoff <= maxCutoff; cutoff=cutoff+increment) {
 				//System.out.println(cutoff);
