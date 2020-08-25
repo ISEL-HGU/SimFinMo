@@ -78,7 +78,7 @@ public class CSVFileMerger {
 
 	private void addLabel(ArrayList<String> lines, String label) {
 		
-		lines.set(0, lines.get(0) + ", label");
+		lines.set(0, lines.get(0) + ",label");
 
 		for(int i=1; i<lines.size();i++) {
 			lines.set(i, lines.get(i) + "," + label);
