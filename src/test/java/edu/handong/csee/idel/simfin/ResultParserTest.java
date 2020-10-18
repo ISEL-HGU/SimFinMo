@@ -8,7 +8,7 @@ public class ResultParserTest {
 	public void testJena() {
 		// 1: data path, 2: initial cutoff, 3: cutoff increment, 4: max cutoff, 5:
 		// target rank
-		String[] args = { "/Users/jihoshin/Desktop/eval_rm_dups/", "jena", "0.0000001", "0.0000005", "0.00001", "2" };
+		String[] args = { "D:\\GoogleDrive\\01-ISEL\\S-LAB (ISEL) Commons\\Research outcomes\\ActionalDefectPrediction\\SImFIn-Results\\newest_all_buggy_and_clean\\raw_all\\", "jena", "0.01", "0.01", "1.5", "2" };
 
 		ResultParser.main(args);
 
@@ -68,7 +68,17 @@ public class ResultParserTest {
 	public void testTez() {
 		// 1: data path, 2: initial cutoff, 3: cutoff increment, 4: max cutoff, 5:
 		// target rank
-		String[] args = { "/Users/jihoshin/Desktop/eval_bnc/", "tez", "0.001", "0.001", "1", "2" };
+		String[] args = { "D:\\GoogleDrive\\01-ISEL\\S-LAB (ISEL) Commons\\Research outcomes\\ActionalDefectPrediction\\SImFIn-Results\\newest_all_buggy_and_clean\\raw_all\\", "tez", "0.01", "0.01", "1.5", "2" };
+
+		ResultParser.main(args);
+
+	}
+	
+	@Test
+	public void testAny() {
+		// 1: data path, 2: initial cutoff, 3: cutoff increment, 4: max cutoff, 5:
+		// target rank
+		String[] args = { "D:\\GoogleDrive\\01-ISEL\\S-LAB (ISEL) Commons\\Research outcomes\\ActionalDefectPrediction\\SImFIn-Results\\newest_all_buggy_and_clean\\raw_all\\", "ranger", "0.01", "0.01", "3.0", "2" };
 
 		ResultParser.main(args);
 

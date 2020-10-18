@@ -125,13 +125,17 @@ public class ResultParser {
 				System.out.print(cutoff);
 				for (int k = kOffset; k <= maxK; k++) {
 					// System.out.println(k);
+					sameBuggyChangeCount=0;
+					sameCleanChangeCount=0;
 					System.out.print("," + evaluate_bnc(keys, buggy_data, clean_data, kOffset, k, cutoff));
 //					System.out.print("," + evaluate_clean(keys, clean_data, kOffset, k, cutoff));
 //					System.out.print("," + evaluate_buggy(keys, buggy_data, kOffset, k, cutoff));
 				}
 				System.out.println();
 			}
-
+			
+			System.out.println("sameBuggyChangeCount=" +sameBuggyChangeCount);
+			System.out.println("sameCleanChangeCount=" +sameCleanChangeCount);
 //			System.out.println("max_p," + res.max_p + ",cutoff," + res.cutoff_p);
 //			System.out.println("max_r," + res.max_r + ",cutoff," + res.cutoff_r);
 //			System.out.println("max_f1," + res.max_f1 + ",cutoff," + res.cutoff_f1);
@@ -160,8 +164,8 @@ public class ResultParser {
 			ArrayList<SimFinData> simFinDataClean = clean_data.get(key);
 			int label = simFinDataBuggy.get(0).getLabel();
 
-			double averageDistanceBuggy = averageDistance(simFinDataBuggy, 2, 3, true);
-			double averageDistanceClean = averageDistance(simFinDataClean, 2, 24, false);
+			double averageDistanceBuggy = getDistanceFirstOneNotSameBuggy(simFinDataBuggy,key);//simFinDataBuggy.get(1).getDistance();//averageDistance(simFinDataBuggy, 2, 2, true);
+			double averageDistanceClean = getDistanceFirstOneNotSameClean(simFinDataClean,key); //simFinDataClean.get(1).getDistance();//averageDistance(simFinDataClean, 2, 2,false); // 2, 24
 
 			double distanceRate = averageDistanceBuggy / averageDistanceClean;
 			if (label == 1) {
@@ -178,6 +182,8 @@ public class ResultParser {
 
 		}
 
+		//System.out.println("Same count = " + samCount);
+		
 		double precision = TP / ((double) TP + FP);
 		double recall = TP / ((double) TP + FN);
 		double f1 = (2 * precision * recall) / (precision + recall);
@@ -189,6 +195,32 @@ public class ResultParser {
 //		getFPR(FPR);
 
 		return TP + ", " + FN + ", " + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
+	}
+
+	int sameBuggyChangeCount = 0;
+	int sameCleanChangeCount = 0;
+	private double getDistanceFirstOneNotSameBuggy(ArrayList<SimFinData> simFinDataBuggy, String key) {
+	
+		SimFinData currentTop = simFinDataBuggy.get(0);
+		String predictedRecordKey= currentTop.getSimilarChangeSHA()+currentTop.getSimilarChangePath();
+		
+		if(key.equals(predictedRecordKey))
+			return simFinDataBuggy.get(1).getDistance();
+		
+			
+		return simFinDataBuggy.get(0).getDistance();
+	}
+	
+	private double getDistanceFirstOneNotSameClean(ArrayList<SimFinData> simFinDataClean, String key) {
+		
+		SimFinData currentTop = simFinDataClean.get(0);
+		String predictedRecordKey= currentTop.getSimilarChangeSHA()+currentTop.getSimilarChangePath();
+		
+		if(key.equals(predictedRecordKey))
+			return simFinDataClean.get(1).getDistance();
+		
+			
+		return simFinDataClean.get(1).getDistance();
 	}
 
 //	private String evaluate_buggy(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset,
@@ -282,10 +314,14 @@ public class ResultParser {
 		double sum = 0.0;
 		// kOffset = 2 // k = 2
 //		try {
-		if ((isBuggyDataIterating && label == 0) || (!isBuggyDataIterating && label == 1) ) {
-			kOffset = 1;
+		/*if ((isBuggyDataIterating && label == 0) || (!isBuggyDataIterating && label == 1) ) {
+			kOffset = kOffset-1;
 			k = k - 1;
-		}
+		}*/
+		/*if ((isBuggyDataIterating && label == 0) ) {
+			kOffset = kOffset-1;
+			k = k - 1;
+		}*/
 		for (int i = kOffset - 1; i < k; i++) {
 			sum = sum + simFinData.get(i).getDistance();
 		}
