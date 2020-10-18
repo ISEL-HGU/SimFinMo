@@ -5,6 +5,20 @@ public class SimFinData {
 	private int rank;
 	private double distance;
 	private int label;
+	private String similarChangeSHA;
+	public String getSimilarChangeSHA() {
+		return similarChangeSHA;
+	}
+	public void setSimilarChangeSHA(String similarChangeSHA) {
+		this.similarChangeSHA = similarChangeSHA;
+	}
+	public String getSimilarChangePath() {
+		return similarChangePath;
+	}
+	public void setSimilarChangePath(String similarChangePath) {
+		this.similarChangePath = similarChangePath;
+	}
+	private String similarChangePath;
 	
 	public SimFinData(String key2, int rank2, Double distance2, int label2) {
 		setKey(key2);

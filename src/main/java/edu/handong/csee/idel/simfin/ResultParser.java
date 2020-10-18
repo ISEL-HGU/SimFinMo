@@ -12,6 +12,8 @@ import java.util.List;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 
+import com.google.common.collect.Lists;
+
 public class ResultParser {
 
 	enum Measure {
@@ -47,7 +49,6 @@ public class ResultParser {
 
 		HashMap<String, ArrayList<SimFinData>> buggy_data = new HashMap<String, ArrayList<SimFinData>>();
 		HashMap<String, ArrayList<SimFinData>> clean_data = new HashMap<String, ArrayList<SimFinData>>();
-		ArrayList<String> keys = new ArrayList<String>();
 
 		Reader buggy_in;
 		Reader clean_in;
@@ -72,7 +73,8 @@ public class ResultParser {
 				String commitID = buggy_list.get(i).get(0);
 				String sourceFilePath = buggy_list.get(i).get(1);
 				String key = commitID + sourceFilePath;
-				keys.add(key);
+				String similarSHA = buggy_list.get(i).get(10);
+				String similarPath = buggy_list.get(i).get(11);
 
 				int buggy_rank = Integer.parseInt(buggy_list.get(i).get(6));
 				Double buggy_distance = Double.parseDouble(buggy_list.get(i).get(7));
@@ -80,7 +82,8 @@ public class ResultParser {
 				int label = Integer.parseInt(buggy_list.get(i).get(9));
 
 				SimFinData buggy_record = new SimFinData(key, buggy_rank, buggy_distance, label);
-
+				buggy_record.setSimilarChangeSHA(similarSHA);
+				buggy_record.setSimilarChangePath(similarPath);
 				if (buggy_data.containsKey(key))
 					buggy_data.get(key).add(buggy_record);
 				else {
@@ -90,17 +93,21 @@ public class ResultParser {
 				}
 			}
 
+			ArrayList<String> keys = Lists.newArrayList(buggy_data.keySet());
 			for (int i = 0; i < clean_list.size(); i++) {
 				String commitID = clean_list.get(i).get(0);
 				String sourceFilePath = clean_list.get(i).get(1);
 				String key = commitID + sourceFilePath;
-				keys.add(key);
+				String similarSHA = clean_list.get(i).get(10);
+				String similarPath = clean_list.get(i).get(11);
 
 				int clean_rank = Integer.parseInt(clean_list.get(i).get(6));
 				Double clean_distance = Double.parseDouble(clean_list.get(i).get(7));
 				int label = Integer.parseInt(clean_list.get(i).get(9));
 
 				SimFinData clean_record = new SimFinData(key, clean_rank, clean_distance, label);
+				clean_record.setSimilarChangeSHA(similarSHA);
+				clean_record.setSimilarChangePath(similarPath);
 
 				if (clean_data.containsKey(key))
 					clean_data.get(key).add(clean_record);
@@ -115,7 +122,6 @@ public class ResultParser {
 			// System.out.println("cutoff-rank" + kOffset + ",precision,recall,f1,mcc");
 			for (double cutoff = initialCutoff; cutoff <= maxCutoff; cutoff = cutoff + increment) {
 				// System.out.println(cutoff);
-
 				System.out.print(cutoff);
 				for (int k = kOffset; k <= maxK; k++) {
 					// System.out.println(k);
@@ -152,19 +158,19 @@ public class ResultParser {
 
 			ArrayList<SimFinData> simFinDataBuggy = buggy_data.get(key);
 			ArrayList<SimFinData> simFinDataClean = clean_data.get(key);
-
-			double averageDistanceBuggy = averageDistance(simFinDataBuggy, 2, 2);
-			double averageDistanceClean = averageDistance(simFinDataClean, 2, 24);
-
 			int label = simFinDataBuggy.get(0).getLabel();
 
+			double averageDistanceBuggy = averageDistance(simFinDataBuggy, 2, 3, true);
+			double averageDistanceClean = averageDistance(simFinDataClean, 2, 24, false);
+
+			double distanceRate = averageDistanceBuggy / averageDistanceClean;
 			if (label == 1) {
-				if (averageDistanceBuggy / averageDistanceClean < cutoff)
+				if (distanceRate < cutoff)
 					TP++;
 				else
 					FN++;
 			} else {
-				if (averageDistanceBuggy / averageDistanceClean < cutoff)
+				if (distanceRate < cutoff)
 					FP++;
 				else
 					TN++;
@@ -182,7 +188,7 @@ public class ResultParser {
 //		getTPR(TPR);
 //		getFPR(FPR);
 
-		return precision + "," + recall + "," + f1 + "," + mcc;
+		return TP + ", " + FN + ", " + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
 //	private String evaluate_buggy(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset,
@@ -271,14 +277,18 @@ public class ResultParser {
 //				+ "," + FPR;
 //	}
 
-	private double averageDistance(ArrayList<SimFinData> simFinData, int kOffset, int k) {
-
+	private double averageDistance(ArrayList<SimFinData> simFinData, int kOffset, int k, boolean isBuggyDataIterating) {
+		int label = simFinData.get(0).getLabel();
 		double sum = 0.0;
 		// kOffset = 2 // k = 2
 //		try {
-			for (int i = kOffset - 1; i < k; i++) {
-				sum = sum + simFinData.get(i - 1).getDistance();
-			}
+		if ((isBuggyDataIterating && label == 0) || (!isBuggyDataIterating && label == 1) ) {
+			kOffset = 1;
+			k = k - 1;
+		}
+		for (int i = kOffset - 1; i < k; i++) {
+			sum = sum + simFinData.get(i).getDistance();
+		}
 //		} catch (Exception e) {
 //			System.out.println(simFinData.get(0).getKey());
 //		}
