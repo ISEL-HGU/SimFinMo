@@ -1,53 +1,148 @@
 package edu.handong.csee.idel.simfin;
 
 public class SimFinData {
+	private String yBicSha;
+	private String yBicPath;
 	private String key;
+	private String yBfcSha;
+	private String yBfcPath;
+	private int yLabel;
 	private int rank;
-	private double distance;
-	private int label;
-	private String similarChangeSHA;
-	public String getSimilarChangeSHA() {
-		return similarChangeSHA;
+	private double dist;
+	private String project;
+	private String yhBicSha;
+	private String yhBicPath;
+	private String yhBfcSha;
+	private String yhBfcPath;
+	private int yhLabel;
+
+	public SimFinData() {
+		yBicSha = "";
+		yBicPath = "";
+		key = "";
+		yBfcSha = "";
+		yBfcPath = "";
+		yLabel = 0;
+		rank = 0;
+		dist = 0;
+		project = "";
+		yhBicSha = "";
+		yhBicPath = "";
+		yhBfcSha = "";
+		yhBfcPath = "";
+		yhLabel = 0;
 	}
-	public void setSimilarChangeSHA(String similarChangeSHA) {
-		this.similarChangeSHA = similarChangeSHA;
+
+	public String getYBicSha() {
+		return yBicSha;
 	}
-	public String getSimilarChangePath() {
-		return similarChangePath;
+
+	public void setYBicSha(String yBicSha) {
+		this.yBicSha = yBicSha;
 	}
-	public void setSimilarChangePath(String similarChangePath) {
-		this.similarChangePath = similarChangePath;
+
+	public String getYBicPath() {
+		return yBicPath;
 	}
-	private String similarChangePath;
-	
-	public SimFinData(String key2, int rank2, Double distance2, int label2) {
-		setKey(key2);
-		setRank(rank2);
-		setDistance(distance2);
-		setLabel(label2);
+
+	public void setYBicPath(String yBicPath) {
+		this.yBicPath = yBicPath;
 	}
+
 	public String getKey() {
 		return key;
 	}
+
 	public void setKey(String key) {
 		this.key = key;
 	}
+
+	public String getYBfcSha() {
+		return yBfcSha;
+	}
+
+	public void setYBfcSha(String yBfcSha) {
+		this.yBfcSha = yBfcSha;
+	}
+
+	public String getYBfcPath() {
+		return yBfcPath;
+	}
+
+	public void setYBfcPath(String yBfcPath) {
+		this.yBfcPath = yBfcPath;
+	}
+
+	public int getYLabel() {
+		return yLabel;
+	}
+
+	public void setYLabel(int yLabel) {
+		this.yLabel = yLabel;
+	}
+
 	public int getRank() {
 		return rank;
 	}
+
 	public void setRank(int rank) {
 		this.rank = rank;
 	}
-	public double getDistance() {
-		return distance;
+
+	public double getDist() {
+		return dist;
 	}
-	public void setDistance(double distance) {
-		this.distance = distance;
+
+	public void setDist(double dist) {
+		this.dist = dist;
 	}
-	public int getLabel() {
-		return label;
+
+	public String getProject() {
+		return project;
 	}
-	public void setLabel(int label) {
-		this.label = label;
+
+	public void setProject(String project) {
+		this.project = project;
 	}
+
+	public String getYhBicSha() {
+		return yhBicSha;
+	}
+
+	public void setYhBicSha(String yhBicSha) {
+		this.yhBicSha = yhBicSha;
+	}
+
+	public String getYhBicPath() {
+		return yhBicPath;
+	}
+
+	public void setYhBicPath(String yhBicPath) {
+		this.yhBicPath = yhBicPath;
+	}
+
+	public String getYhBfcSha() {
+		return yhBfcSha;
+	}
+
+	public void setYhBfcSha(String yhBfcSha) {
+		this.yhBfcSha = yhBfcSha;
+	}
+
+	public String getYhBfcPath() {
+		return yhBfcPath;
+	}
+
+	public void setYhBfcPath(String yhBfcPath) {
+		this.yhBfcPath = yhBfcPath;
+	}
+
+	public int getYhLabel() {
+		return yhLabel;
+	}
+
+	public void setYhLabel(int yhLabel) {
+		this.yhLabel = yhLabel;
+	}
+	
 }
