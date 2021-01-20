@@ -1,10 +1,13 @@
 package edu.handong.csee.idel.simfin;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,31 +32,65 @@ public class ResultParser {
 
 	public static void main(String[] args) throws IOException {
 		ResultParser np = new ResultParser();
-
-		if (args[0].equals("all")) {
-			np.run_all(args);
+		if (args[0].equals("combined")) {
+			np.runCombined(args);
+		} else if (args[0].equals("divided")) {
+			np.runDivided(args);
 		} else if (args[0].equals("tps")) {
-			np.run_tps(args);
-		} else if (args[0].equals("bnc")) {
-			np.run_bnc(args);
+			np.runTps(args);
+		} else if (args[0].equals("all")) {
+			np.runTopAll(args);
 		} else {
 			System.out.println("No command selected!");
 		}
 	}
 
-	// ./ADP/bin/ADP all /data/jihoshin/sentry/ 10 0.01 0.01 1.0
-	private void run_all(String[] args) throws IOException {
+	// ./SimFinMo/ADP/bin/ADP all sentry 0.1 0.0 10 > ./SimFinMo/out/sentry.csv
+	private void runTopAll(String[] args) throws IOException {
+		String projectName = args[1]; // "sentry OR tez"
+		String filePathDist = "./data/jihoshin/" + projectName + "/";
+		increment = Double.parseDouble(args[2]);
+		initialCutoff = Double.parseDouble(args[3]);
+		maxCutoff = Double.parseDouble(args[4]);
+
+		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
+		FileReader csvTest = new FileReader(filePathTest);
+		Iterable<CSVRecord> recordsTest = CSVFormat.RFC4180.parse(csvTest);
+		Iterator<CSVRecord> csvIterTest = recordsTest.iterator();
+		List<CSVRecord> testList = new ArrayList<CSVRecord>();
+		while (csvIterTest.hasNext()) {
+			testList.add(csvIterTest.next());
+		}
+
+		File file = new File(filePathDist);
+		File[] files = file.listFiles(new FileFilter() {
+			@Override
+			public boolean accept(File f) {
+				return f.isDirectory();
+			}
+		});
+
+		// writing the evalated scores
+		System.out.println("cutoff-rank,TP,FN,TN,FP,precision,recall,f1,mcc");
+		for (double cutoff = initialCutoff; cutoff <= maxCutoff; cutoff = cutoff + increment) {
+			System.out.print(cutoff);
+			for (int k = kOffset; k <= maxK; k++) {
+				System.out.print("," + evalAllK(testList, filePathDist, files, cutoff));
+			}
+			System.out.println();
+		}
+	}
+
+	// ./ADP/bin/ADP combined /data/jihoshin/sentry/ 10 0.01 0.01 1.0
+	private void runCombined(String[] args) throws IOException {
 		String filePath = args[1]; // "./data/jihoshin/sqoop/"
-		int k_neighbors = Integer.parseInt(args[2]); // 10
+		int kNeighbors = Integer.parseInt(args[2]);
+		if (kNeighbors > 100)
+			kNeighbors = 100;
 		increment = Double.parseDouble(args[3]);
 		initialCutoff = Double.parseDouble(args[4]);
 		maxCutoff = Double.parseDouble(args[5]);
-		boolean is_top_only = false;
-		if (args[6].equals("true"))
-			is_top_only = true;
 
-		if (k_neighbors > 100)
-			k_neighbors = 100;
 		File file = new File(filePath);
 		File[] files = file.listFiles(new FileFilter() {
 			@Override
@@ -62,34 +99,34 @@ public class ResultParser {
 			}
 		});
 		int instanceNum = files.length;
-		HashMap<String, ArrayList<SimFinData>> all_data = new HashMap<String, ArrayList<SimFinData>>();
+		HashMap<String, ArrayList<SimFinData>> allData = new HashMap<String, ArrayList<SimFinData>>();
 //		System.out.println("Test Instance Numbers: " + instanceNum);
 
 		// iterate every num of test instance numbers == num of folders.
 		for (int j = 0; j < instanceNum; j++) {
-			FileReader csv_in = new FileReader(filePath + "test" + j + "/result.csv");
-			Iterable<CSVRecord> records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(csv_in);
-			Iterator<CSVRecord> csv_iter = records.iterator();
-			List<CSVRecord> csv_list = new ArrayList<CSVRecord>();
-			while (csv_iter.hasNext()) {
-				csv_list.add(csv_iter.next());
+			FileReader csvIn = new FileReader(filePath + "test" + j + "/result.csv");
+			Iterable<CSVRecord> records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(csvIn);
+			Iterator<CSVRecord> csvIter = records.iterator();
+			List<CSVRecord> csvList = new ArrayList<CSVRecord>();
+			while (csvIter.hasNext()) {
+				csvList.add(csvIter.next());
 			}
 			// data preparation of instances.
-			for (int i = 0; i < k_neighbors; i++) {
-				String yBicSha = csv_list.get(i).get(0);
-				String yBicPath = csv_list.get(i).get(1);
+			for (int i = 0; i < kNeighbors; i++) {
+				String yBicSha = csvList.get(i).get(0);
+				String yBicPath = csvList.get(i).get(1);
 				String key = yBicSha + yBicPath;
-				String yBfcSha = csv_list.get(i).get(3);
-				String yBfcPath = csv_list.get(i).get(4);
-				int yLabel = Integer.parseInt(csv_list.get(i).get(6));
-				int rank = Integer.parseInt(csv_list.get(i).get(7));
-				double dist = Double.parseDouble(csv_list.get(i).get(8));
-				String project = csv_list.get(i).get(9);
-				String yhBicSha = csv_list.get(i).get(10);
-				String yhBicPath = csv_list.get(i).get(11);
-				String yhBfcSha = csv_list.get(i).get(13);
-				String yhBfcPath = csv_list.get(i).get(14);
-				int yhLabel = Integer.parseInt(csv_list.get(i).get(16));
+				String yBfcSha = csvList.get(i).get(3);
+				String yBfcPath = csvList.get(i).get(4);
+				int yLabel = Integer.parseInt(csvList.get(i).get(6));
+				int rank = Integer.parseInt(csvList.get(i).get(7));
+				double dist = Double.parseDouble(csvList.get(i).get(8));
+				String project = csvList.get(i).get(9);
+				String yhBicSha = csvList.get(i).get(10);
+				String yhBicPath = csvList.get(i).get(11);
+				String yhBfcSha = csvList.get(i).get(13);
+				String yhBfcPath = csvList.get(i).get(14);
+				int yhLabel = Integer.parseInt(csvList.get(i).get(16));
 
 				SimFinData data = new SimFinData();
 				data.setYBicSha(yBicSha);
@@ -107,17 +144,17 @@ public class ResultParser {
 				data.setYhBfcPath(yhBfcPath);
 				data.setYhLabel(yhLabel);
 
-				if (all_data.containsKey(key))
-					all_data.get(key).add(data);
+				if (allData.containsKey(key))
+					allData.get(key).add(data);
 				else {
 					ArrayList<SimFinData> newSimFinData = new ArrayList<SimFinData>();
 					newSimFinData.add(data);
-					all_data.put(key, newSimFinData);
+					allData.put(key, newSimFinData);
 				}
 			}
 		}
 
-		ArrayList<String> keys = Lists.newArrayList(all_data.keySet());
+		ArrayList<String> keys = Lists.newArrayList(allData.keySet());
 
 		// writing the evalated scores
 		System.out.println("cutoff-rank" + kOffset + ",TP,FN,TN,FP,precision,recall,f1,mcc");
@@ -125,19 +162,19 @@ public class ResultParser {
 			// System.out.println(cutoff);
 			System.out.print(cutoff);
 			for (int k = kOffset; k <= maxK; k++) {
-				if (is_top_only) {
-					System.out.print("," + evaluate_top_only(keys, all_data, kOffset, k, cutoff));
+				if (kNeighbors == 1) {
+					System.out.print("," + evalCombinedTop1(keys, allData, kOffset, k, cutoff));
 				} else {
-					System.out.print("," + evaluate_bnc(keys, all_data, kOffset, k, cutoff));
+					System.out.print("," + evalCombinedAvg(keys, allData, kOffset, k, cutoff));
 				}
-				// System.out.print("," + evaluate_clean(keys, clean_data, kOffset, k, cutoff));
-				// System.out.print("," + evaluate_buggy(keys, buggy_data, kOffset, k, cutoff));
+				// System.out.print("," + evaluateClean(keys, cleanData, kOffset, k, cutoff));
+				// System.out.print("," + evaluateBuggy(keys, buggyData, kOffset, k, cutoff));
 			}
 			System.out.println();
 		}
 	}
 
-	private void run_bnc(String[] args) {
+	private void runDivided(String[] args) {
 		String resultFilePath = args[0]; // "data" + File.separator + folder + File.separator + "maven_result.csv";
 		String projectName = args[1];
 		initialCutoff = Double.parseDouble(args[2]);
@@ -146,108 +183,108 @@ public class ResultParser {
 		kOffset = Integer.parseInt(args[5]);
 		maxK = kOffset; // just consider only one rank
 
-		HashMap<String, ArrayList<SimFinData>> buggy_data = new HashMap<String, ArrayList<SimFinData>>();
-		HashMap<String, ArrayList<SimFinData>> clean_data = new HashMap<String, ArrayList<SimFinData>>();
+		HashMap<String, ArrayList<SimFinData>> buggyData = new HashMap<String, ArrayList<SimFinData>>();
+		HashMap<String, ArrayList<SimFinData>> cleanData = new HashMap<String, ArrayList<SimFinData>>();
 
-		Reader buggy_in;
-		Reader clean_in;
+		Reader buggyIn;
+		Reader cleanIn;
 		try {
-			buggy_in = new FileReader(resultFilePath + projectName + "_buggy_result.csv");
-			clean_in = new FileReader(resultFilePath + projectName + "_clean_result.csv");
-			Iterable<CSVRecord> buggy_records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(buggy_in);
-			Iterable<CSVRecord> clean_records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(clean_in);
-			List<CSVRecord> buggy_list = new ArrayList<CSVRecord>();
-			List<CSVRecord> clean_list = new ArrayList<CSVRecord>();
-			Iterator<CSVRecord> iter_buggy = buggy_records.iterator();
-			Iterator<CSVRecord> iter_clean = clean_records.iterator();
-			while (iter_buggy.hasNext()) {
-				buggy_list.add(iter_buggy.next());
+			buggyIn = new FileReader(resultFilePath + projectName + "_buggy_result.csv");
+			cleanIn = new FileReader(resultFilePath + projectName + "_clean_result.csv");
+			Iterable<CSVRecord> buggyRecords = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(buggyIn);
+			Iterable<CSVRecord> cleanRecords = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(cleanIn);
+			List<CSVRecord> buggyList = new ArrayList<CSVRecord>();
+			List<CSVRecord> cleanList = new ArrayList<CSVRecord>();
+			Iterator<CSVRecord> iterBuggy = buggyRecords.iterator();
+			Iterator<CSVRecord> iterClean = cleanRecords.iterator();
+			while (iterBuggy.hasNext()) {
+				buggyList.add(iterBuggy.next());
 			}
-			while (iter_clean.hasNext()) {
-				clean_list.add(iter_clean.next());
+			while (iterClean.hasNext()) {
+				cleanList.add(iterClean.next());
 			}
 
 			// data preparation for both buggy and clean instances.
-			for (int i = 0; i < buggy_list.size(); i++) {
-				String yBicSha = buggy_list.get(i).get(0);
-				String yBicPath = buggy_list.get(i).get(1);
+			for (int i = 0; i < buggyList.size(); i++) {
+				String yBicSha = buggyList.get(i).get(0);
+				String yBicPath = buggyList.get(i).get(1);
 				String key = yBicSha + yBicPath;
-				String yBfcSha = buggy_list.get(i).get(3);
-				String yBfcPath = buggy_list.get(i).get(4);
-				int yLabel = Integer.parseInt(buggy_list.get(i).get(6));
-				int rank = Integer.parseInt(buggy_list.get(i).get(7));
-				double dist = Double.parseDouble(buggy_list.get(i).get(8));
-				String project = buggy_list.get(i).get(9);
-				String yhBicSha = buggy_list.get(i).get(10);
-				String yhBicPath = buggy_list.get(i).get(11);
-				String yhBfcSha = buggy_list.get(i).get(13);
-				String yhBfcPath = buggy_list.get(i).get(14);
-				int yhLabel = Integer.parseInt(buggy_list.get(i).get(16));
+				String yBfcSha = buggyList.get(i).get(3);
+				String yBfcPath = buggyList.get(i).get(4);
+				int yLabel = Integer.parseInt(buggyList.get(i).get(6));
+				int rank = Integer.parseInt(buggyList.get(i).get(7));
+				double dist = Double.parseDouble(buggyList.get(i).get(8));
+				String project = buggyList.get(i).get(9);
+				String yhBicSha = buggyList.get(i).get(10);
+				String yhBicPath = buggyList.get(i).get(11);
+				String yhBfcSha = buggyList.get(i).get(13);
+				String yhBfcPath = buggyList.get(i).get(14);
+				int yhLabel = Integer.parseInt(buggyList.get(i).get(16));
 
-				SimFinData buggy_record = new SimFinData();
-				buggy_record.setYBicSha(yBicSha);
-				buggy_record.setYBicPath(yBicPath);
-				buggy_record.setKey(key);
-				buggy_record.setYBfcSha(yBfcSha);
-				buggy_record.setYBfcPath(yBfcPath);
-				buggy_record.setYLabel(yLabel);
-				buggy_record.setRank(rank);
-				buggy_record.setDist(dist);
-				buggy_record.setProject(project);
-				buggy_record.setYhBicSha(yhBicSha);
-				buggy_record.setYhBicPath(yhBicPath);
-				buggy_record.setYhBfcSha(yhBfcSha);
-				buggy_record.setYhBfcPath(yhBfcPath);
-				buggy_record.setYhLabel(yhLabel);
+				SimFinData buggyRecord = new SimFinData();
+				buggyRecord.setYBicSha(yBicSha);
+				buggyRecord.setYBicPath(yBicPath);
+				buggyRecord.setKey(key);
+				buggyRecord.setYBfcSha(yBfcSha);
+				buggyRecord.setYBfcPath(yBfcPath);
+				buggyRecord.setYLabel(yLabel);
+				buggyRecord.setRank(rank);
+				buggyRecord.setDist(dist);
+				buggyRecord.setProject(project);
+				buggyRecord.setYhBicSha(yhBicSha);
+				buggyRecord.setYhBicPath(yhBicPath);
+				buggyRecord.setYhBfcSha(yhBfcSha);
+				buggyRecord.setYhBfcPath(yhBfcPath);
+				buggyRecord.setYhLabel(yhLabel);
 
-				if (buggy_data.containsKey(key))
-					buggy_data.get(key).add(buggy_record);
+				if (buggyData.containsKey(key))
+					buggyData.get(key).add(buggyRecord);
 				else {
 					ArrayList<SimFinData> newSimFinData = new ArrayList<SimFinData>();
-					newSimFinData.add(buggy_record);
-					buggy_data.put(key, newSimFinData);
+					newSimFinData.add(buggyRecord);
+					buggyData.put(key, newSimFinData);
 				}
 			}
 
-			ArrayList<String> keys = Lists.newArrayList(buggy_data.keySet());
-			for (int i = 0; i < clean_list.size(); i++) {
-				String yBicSha = buggy_list.get(i).get(0);
-				String yBicPath = buggy_list.get(i).get(1);
+			ArrayList<String> keys = Lists.newArrayList(buggyData.keySet());
+			for (int i = 0; i < cleanList.size(); i++) {
+				String yBicSha = buggyList.get(i).get(0);
+				String yBicPath = buggyList.get(i).get(1);
 				String key = yBicSha + yBicPath;
-				String yBfcSha = buggy_list.get(i).get(3);
-				String yBfcPath = buggy_list.get(i).get(4);
-				int yLabel = Integer.parseInt(buggy_list.get(i).get(6));
-				int rank = Integer.parseInt(buggy_list.get(i).get(7));
-				double dist = Double.parseDouble(buggy_list.get(i).get(8));
-				String project = buggy_list.get(i).get(9);
-				String yhBicSha = buggy_list.get(i).get(10);
-				String yhBicPath = buggy_list.get(i).get(11);
-				String yhBfcSha = buggy_list.get(i).get(13);
-				String yhBfcPath = buggy_list.get(i).get(14);
-				int yhLabel = Integer.parseInt(buggy_list.get(i).get(16));
+				String yBfcSha = buggyList.get(i).get(3);
+				String yBfcPath = buggyList.get(i).get(4);
+				int yLabel = Integer.parseInt(buggyList.get(i).get(6));
+				int rank = Integer.parseInt(buggyList.get(i).get(7));
+				double dist = Double.parseDouble(buggyList.get(i).get(8));
+				String project = buggyList.get(i).get(9);
+				String yhBicSha = buggyList.get(i).get(10);
+				String yhBicPath = buggyList.get(i).get(11);
+				String yhBfcSha = buggyList.get(i).get(13);
+				String yhBfcPath = buggyList.get(i).get(14);
+				int yhLabel = Integer.parseInt(buggyList.get(i).get(16));
 
-				SimFinData clean_record = new SimFinData();
-				clean_record.setYBicSha(yBicSha);
-				clean_record.setYBicPath(yBicPath);
-				clean_record.setKey(key);
-				clean_record.setYBfcSha(yBfcSha);
-				clean_record.setYBfcPath(yBfcPath);
-				clean_record.setYLabel(yLabel);
-				clean_record.setRank(rank);
-				clean_record.setDist(dist);
-				clean_record.setProject(project);
-				clean_record.setYhBicSha(yhBicSha);
-				clean_record.setYhBicPath(yhBicPath);
-				clean_record.setYhBfcSha(yhBfcSha);
-				clean_record.setYhBfcPath(yhBfcPath);
-				clean_record.setYhLabel(yhLabel);
+				SimFinData cleanRecord = new SimFinData();
+				cleanRecord.setYBicSha(yBicSha);
+				cleanRecord.setYBicPath(yBicPath);
+				cleanRecord.setKey(key);
+				cleanRecord.setYBfcSha(yBfcSha);
+				cleanRecord.setYBfcPath(yBfcPath);
+				cleanRecord.setYLabel(yLabel);
+				cleanRecord.setRank(rank);
+				cleanRecord.setDist(dist);
+				cleanRecord.setProject(project);
+				cleanRecord.setYhBicSha(yhBicSha);
+				cleanRecord.setYhBicPath(yhBicPath);
+				cleanRecord.setYhBfcSha(yhBfcSha);
+				cleanRecord.setYhBfcPath(yhBfcPath);
+				cleanRecord.setYhLabel(yhLabel);
 
-				if (clean_data.containsKey(key))
-					clean_data.get(key).add(clean_record);
+				if (cleanData.containsKey(key))
+					cleanData.get(key).add(cleanRecord);
 				else {
 					ArrayList<SimFinData> newSimFinData = new ArrayList<SimFinData>();
-					newSimFinData.add(clean_record);
-					clean_data.put(key, newSimFinData);
+					newSimFinData.add(cleanRecord);
+					cleanData.put(key, newSimFinData);
 				}
 			}
 
@@ -257,9 +294,9 @@ public class ResultParser {
 				// System.out.println(cutoff);
 				System.out.print(cutoff);
 				for (int k = kOffset; k <= maxK; k++) {
-					System.out.print("," + evaluate_bnc(keys, buggy_data, clean_data, kOffset, k, cutoff));
-					// System.out.print("," + evaluate_clean(keys, clean_data, kOffset, k, cutoff));
-					// System.out.print("," + evaluate_buggy(keys, buggy_data, kOffset, k, cutoff));
+					System.out.print("," + evaluateDivided(keys, buggyData, cleanData, kOffset, k, cutoff));
+//					 System.out.print("," + evaluateClean(keys, cleanData, kOffset, k, cutoff));
+//					 System.out.print("," + evaluateBuggy(keys, buggyData, kOffset, k, cutoff));
 				}
 				System.out.println();
 			}
@@ -273,12 +310,12 @@ public class ResultParser {
 		}
 	}
 
-	private void getTPs(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> buggy_data,
-			HashMap<String, ArrayList<SimFinData>> clean_data) {
+	private void getTPs(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> buggyData,
+			HashMap<String, ArrayList<SimFinData>> cleanData) {
 		for (String key : keys) {
 
-			ArrayList<SimFinData> simFinDataBuggy = buggy_data.get(key);
-			ArrayList<SimFinData> simFinDataClean = clean_data.get(key);
+			ArrayList<SimFinData> simFinDataBuggy = buggyData.get(key);
+			ArrayList<SimFinData> simFinDataClean = cleanData.get(key);
 			int label = simFinDataBuggy.get(0).getYLabel();
 
 			double averageDistanceBuggy = simFinDataBuggy.get(0).getDist();// averageDistance(simFinDataBuggy, 2, 2,
@@ -302,20 +339,95 @@ public class ResultParser {
 		}
 	}
 
+	private String evalAllK(List<CSVRecord> testList, String filePathDist, File[] files, double cutoff)
+			throws IOException {
+		int TP = 0;
+		int TN = 0;
+		int FP = 0;
+		int FN = 0;
+
+		// loop through # of test instance
+		int instanceNum = files.length;
+		for (int i = 0; i < instanceNum; i++) {
+			FileReader csvSorted = new FileReader(filePathDist + "test" + i + "/sorted.csv");
+			Iterable<CSVRecord> recordsSorted = CSVFormat.RFC4180.parse(csvSorted);
+			Iterator<CSVRecord> csvIterSorted = recordsSorted.iterator();
+			List<CSVRecord> sortedList = new ArrayList<CSVRecord>();
+			while (csvIterSorted.hasNext()) {
+				sortedList.add(csvIterSorted.next());
+			}
+
+			double avgBugDist = 0.0;
+			double avgCleanDist = 0.0;
+			int numOfBug = 0;
+			int numOfClean = 0;
+			int yLabel = Integer.parseInt(testList.get(i).get(11));
+
+			// loop through all Ks (# of train instances)
+			for (int j = 0; j < sortedList.size(); j++) {
+				int yhLabel = Integer.parseInt(sortedList.get(j).get(2));
+				double dist = Double.parseDouble(sortedList.get(j).get(0));
+				if (yhLabel == 0) {
+					avgCleanDist += dist;
+					numOfClean++;
+				} else if (yhLabel == 1) {
+					avgBugDist += dist;
+					numOfBug++;
+				}
+			}
+			avgCleanDist /= numOfClean;
+			avgBugDist /= numOfBug;
+
+			double distanceRate = avgBugDist / avgCleanDist;
+			if (numOfClean > 0 && numOfBug > 0) {
+				if (yLabel == 1) {
+					if (distanceRate < cutoff)
+						TP++;
+					else
+						FN++;
+				} else {
+					if (distanceRate < cutoff)
+						FP++;
+					else
+						TN++;
+				}
+			} else if (numOfBug == 0) {
+				if (yLabel == 1) {
+					FN++;
+				} else {
+					TN++;
+				}
+			} else {
+				if (yLabel == 1) {
+					TP++;
+				} else {
+					FP++;
+				}
+			}
+		}
+		double precision = TP / ((double) TP + FP);
+		double recall = TP / ((double) TP + FN);
+		double f1 = (2 * precision * recall) / (precision + recall);
+		double mcc = (double) (TP * TN - FP * FN) / (Math.sqrt((double) (TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)));
+
+		return TP + "," + FN + "," + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
+	}
+
 	// evaluate by getting the average distance of both buggy and clean
-	private String evaluate_top_only(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> all_data,
-			int kOffset, int k, double cutoff) {
+	private String evalCombinedTop1(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> allData, int kOffset,
+			int k, double cutoff) {
 
 		int TP = 0; // 1 -> 1
 		int FP = 0; // 0 -> 1
 		int TN = 0; // 0 -> 0
 		int FN = 0; // 1 -> 0
-		// int no_clean = 0;
-		// int no_buggy = 0;
+		// int noClean = 0;
+		// int noBuggy = 0;
 
+		// loop through test instances
 		for (String key : keys) {
 
-			ArrayList<SimFinData> simFinData = all_data.get(key);
+			ArrayList<SimFinData> simFinData = allData.get(key);
 
 			double closestBuggy = Double.MAX_VALUE;
 			double closestClean = Double.MAX_VALUE;
@@ -352,14 +464,14 @@ public class ResultParser {
 						TN++;
 				}
 			} else if (numOfBuggy == 0) {
-				// no_buggy++;
+				// noBuggy++;
 				if (yLabel == 1) {
 					FN++;
 				} else {
 					TN++;
 				}
 			} else {
-				// no_clean++;
+				// noClean++;
 				if (yLabel == 1) {
 					TP++;
 				} else {
@@ -367,17 +479,17 @@ public class ResultParser {
 				}
 			}
 		}
-		// System.out.println(",no buggy," + no_buggy + ",no clean," + no_clean + ",");
+		// System.out.println(",no buggy," + noBuggy + ",no clean," + noClean + ",");
 		double precision = TP / ((double) TP + FP);
 		double recall = TP / ((double) TP + FN);
 		double f1 = (2 * precision * recall) / (precision + recall);
 		double mcc = (double) (TP * TN - FP * FN) / (Math.sqrt((double) (TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)));
 
-		return TP + ", " + FN + ", " + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
+		return TP + "," + FN + "," + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
 	// evaluate by getting the average distance of both buggy and clean
-	private String evaluate_bnc(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> all_data, int kOffset,
+	private String evalCombinedAvg(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> allData, int kOffset,
 			int k, double cutoff) {
 
 		int TP = 0; // 1 -> 1
@@ -387,7 +499,7 @@ public class ResultParser {
 
 		for (String key : keys) {
 
-			ArrayList<SimFinData> simFinData = all_data.get(key);
+			ArrayList<SimFinData> simFinData = allData.get(key);
 
 			int numOfBuggy = 0;
 			int numOfClean = 0;
@@ -448,8 +560,8 @@ public class ResultParser {
 		return TP + ", " + FN + ", " + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
-	private String evaluate_bnc(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> buggy_data,
-			HashMap<String, ArrayList<SimFinData>> clean_data, int kOffset, int k, double cutoff) {
+	private String evaluateDivided(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> buggyData,
+			HashMap<String, ArrayList<SimFinData>> cleanData, int kOffset, int k, double cutoff) {
 
 		int TP = 0; // 1 -> 1
 		int FP = 0; // 0 -> 1
@@ -458,8 +570,8 @@ public class ResultParser {
 
 		for (String key : keys) {
 
-			ArrayList<SimFinData> simFinDataBuggy = buggy_data.get(key);
-			ArrayList<SimFinData> simFinDataClean = clean_data.get(key);
+			ArrayList<SimFinData> simFinDataBuggy = buggyData.get(key);
+			ArrayList<SimFinData> simFinDataClean = cleanData.get(key);
 			int label = simFinDataBuggy.get(0).getYLabel();
 
 			double averageDistanceBuggy = simFinDataBuggy.get(0).getDist();// averageDistance(simFinDataBuggy, 2, 2,
@@ -490,7 +602,7 @@ public class ResultParser {
 		return TP + ", " + FN + ", " + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
-//	private String evaluate_buggy(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset,
+//	private String evaluateBuggy(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset,
 //			int k, double cutoff) {
 //
 //		int TP = 0; // 1 -> 1
@@ -533,7 +645,7 @@ public class ResultParser {
 //				+ "," + FPR;
 //	}
 
-//	private String evaluate_clean(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset,
+//	private String evaluateClean(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset,
 //			int k, double cutoff) {
 //
 //		int TP = 0; // 1 -> 1
@@ -576,7 +688,7 @@ public class ResultParser {
 //				+ "," + FPR;
 //	}
 
-	private void run_tps(String[] args) {
+	private void runTps(String[] args) {
 		String resultFilePath = args[0]; // "data" + File.separator + folder + File.separator + "maven_result.csv";
 		String projectName = args[1];
 		initialCutoff = Double.parseDouble(args[2]);
@@ -585,113 +697,113 @@ public class ResultParser {
 		kOffset = Integer.parseInt(args[5]);
 		maxK = kOffset; // just consider only one rank
 
-		HashMap<String, ArrayList<SimFinData>> buggy_data = new HashMap<String, ArrayList<SimFinData>>();
-		HashMap<String, ArrayList<SimFinData>> clean_data = new HashMap<String, ArrayList<SimFinData>>();
+		HashMap<String, ArrayList<SimFinData>> buggyData = new HashMap<String, ArrayList<SimFinData>>();
+		HashMap<String, ArrayList<SimFinData>> cleanData = new HashMap<String, ArrayList<SimFinData>>();
 
-		Reader buggy_in;
-		Reader clean_in;
+		Reader buggyIn;
+		Reader cleanIn;
 		try {
-			buggy_in = new FileReader(resultFilePath + projectName + "_buggy_result.csv");
-			clean_in = new FileReader(resultFilePath + projectName + "_clean_result.csv");
-			Iterable<CSVRecord> buggy_records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(buggy_in);
-			Iterable<CSVRecord> clean_records = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(clean_in);
-			List<CSVRecord> buggy_list = new ArrayList<CSVRecord>();
-			List<CSVRecord> clean_list = new ArrayList<CSVRecord>();
-			Iterator<CSVRecord> iter_buggy = buggy_records.iterator();
-			Iterator<CSVRecord> iter_clean = clean_records.iterator();
-			while (iter_buggy.hasNext()) {
-				buggy_list.add(iter_buggy.next());
+			buggyIn = new FileReader(resultFilePath + projectName + "_buggy_result.csv");
+			cleanIn = new FileReader(resultFilePath + projectName + "_clean_result.csv");
+			Iterable<CSVRecord> buggyRecords = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(buggyIn);
+			Iterable<CSVRecord> cleanRecords = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(cleanIn);
+			List<CSVRecord> buggyList = new ArrayList<CSVRecord>();
+			List<CSVRecord> cleanList = new ArrayList<CSVRecord>();
+			Iterator<CSVRecord> iterBuggy = buggyRecords.iterator();
+			Iterator<CSVRecord> iterClean = cleanRecords.iterator();
+			while (iterBuggy.hasNext()) {
+				buggyList.add(iterBuggy.next());
 			}
-			while (iter_clean.hasNext()) {
-				clean_list.add(iter_clean.next());
+			while (iterClean.hasNext()) {
+				cleanList.add(iterClean.next());
 			}
 
 			// data preparation for buggy instances.
-			for (int i = 0; i < buggy_list.size(); i++) {
-				String yBicSha = buggy_list.get(i).get(0);
-				String yBicPath = buggy_list.get(i).get(1);
+			for (int i = 0; i < buggyList.size(); i++) {
+				String yBicSha = buggyList.get(i).get(0);
+				String yBicPath = buggyList.get(i).get(1);
 				String key = yBicSha + yBicPath;
-				String yBfcSha = buggy_list.get(i).get(3);
-				String yBfcPath = buggy_list.get(i).get(4);
-				int yLabel = Integer.parseInt(buggy_list.get(i).get(6));
-				int rank = Integer.parseInt(buggy_list.get(i).get(7));
-				double dist = Double.parseDouble(buggy_list.get(i).get(8));
-				String project = buggy_list.get(i).get(9);
-				String yhBicSha = buggy_list.get(i).get(10);
-				String yhBicPath = buggy_list.get(i).get(11);
-				String yhBfcSha = buggy_list.get(i).get(13);
-				String yhBfcPath = buggy_list.get(i).get(14);
-				int yhLabel = Integer.parseInt(buggy_list.get(i).get(16));
+				String yBfcSha = buggyList.get(i).get(3);
+				String yBfcPath = buggyList.get(i).get(4);
+				int yLabel = Integer.parseInt(buggyList.get(i).get(6));
+				int rank = Integer.parseInt(buggyList.get(i).get(7));
+				double dist = Double.parseDouble(buggyList.get(i).get(8));
+				String project = buggyList.get(i).get(9);
+				String yhBicSha = buggyList.get(i).get(10);
+				String yhBicPath = buggyList.get(i).get(11);
+				String yhBfcSha = buggyList.get(i).get(13);
+				String yhBfcPath = buggyList.get(i).get(14);
+				int yhLabel = Integer.parseInt(buggyList.get(i).get(16));
 
-				SimFinData buggy_record = new SimFinData();
-				buggy_record.setYBicSha(yBicSha);
-				buggy_record.setYBicPath(yBicPath);
-				buggy_record.setKey(key);
-				buggy_record.setYBfcSha(yBfcSha);
-				buggy_record.setYBfcPath(yBfcPath);
-				buggy_record.setYLabel(yLabel);
-				buggy_record.setRank(rank);
-				buggy_record.setDist(dist);
-				buggy_record.setProject(project);
-				buggy_record.setYhBicSha(yhBicSha);
-				buggy_record.setYhBicPath(yhBicPath);
-				buggy_record.setYhBfcSha(yhBfcSha);
-				buggy_record.setYhBfcPath(yhBfcPath);
-				buggy_record.setYhLabel(yhLabel);
+				SimFinData buggyRecord = new SimFinData();
+				buggyRecord.setYBicSha(yBicSha);
+				buggyRecord.setYBicPath(yBicPath);
+				buggyRecord.setKey(key);
+				buggyRecord.setYBfcSha(yBfcSha);
+				buggyRecord.setYBfcPath(yBfcPath);
+				buggyRecord.setYLabel(yLabel);
+				buggyRecord.setRank(rank);
+				buggyRecord.setDist(dist);
+				buggyRecord.setProject(project);
+				buggyRecord.setYhBicSha(yhBicSha);
+				buggyRecord.setYhBicPath(yhBicPath);
+				buggyRecord.setYhBfcSha(yhBfcSha);
+				buggyRecord.setYhBfcPath(yhBfcPath);
+				buggyRecord.setYhLabel(yhLabel);
 
-				if (buggy_data.containsKey(key))
-					buggy_data.get(key).add(buggy_record);
+				if (buggyData.containsKey(key))
+					buggyData.get(key).add(buggyRecord);
 				else {
 					ArrayList<SimFinData> newSimFinData = new ArrayList<SimFinData>();
-					newSimFinData.add(buggy_record);
-					buggy_data.put(key, newSimFinData);
+					newSimFinData.add(buggyRecord);
+					buggyData.put(key, newSimFinData);
 				}
 			}
 
 			// data preparation for clean instances.
-			ArrayList<String> keys = Lists.newArrayList(buggy_data.keySet());
-			for (int i = 0; i < clean_list.size(); i++) {
-				String yBicSha = buggy_list.get(i).get(0);
-				String yBicPath = buggy_list.get(i).get(1);
+			ArrayList<String> keys = Lists.newArrayList(buggyData.keySet());
+			for (int i = 0; i < cleanList.size(); i++) {
+				String yBicSha = buggyList.get(i).get(0);
+				String yBicPath = buggyList.get(i).get(1);
 				String key = yBicSha + yBicPath;
-				String yBfcSha = buggy_list.get(i).get(3);
-				String yBfcPath = buggy_list.get(i).get(4);
-				int yLabel = Integer.parseInt(buggy_list.get(i).get(6));
-				int rank = Integer.parseInt(buggy_list.get(i).get(7));
-				double dist = Double.parseDouble(buggy_list.get(i).get(8));
-				String project = buggy_list.get(i).get(9);
-				String yhBicSha = buggy_list.get(i).get(10);
-				String yhBicPath = buggy_list.get(i).get(11);
-				String yhBfcSha = buggy_list.get(i).get(13);
-				String yhBfcPath = buggy_list.get(i).get(14);
-				int yhLabel = Integer.parseInt(buggy_list.get(i).get(16));
+				String yBfcSha = buggyList.get(i).get(3);
+				String yBfcPath = buggyList.get(i).get(4);
+				int yLabel = Integer.parseInt(buggyList.get(i).get(6));
+				int rank = Integer.parseInt(buggyList.get(i).get(7));
+				double dist = Double.parseDouble(buggyList.get(i).get(8));
+				String project = buggyList.get(i).get(9);
+				String yhBicSha = buggyList.get(i).get(10);
+				String yhBicPath = buggyList.get(i).get(11);
+				String yhBfcSha = buggyList.get(i).get(13);
+				String yhBfcPath = buggyList.get(i).get(14);
+				int yhLabel = Integer.parseInt(buggyList.get(i).get(16));
 
-				SimFinData clean_record = new SimFinData();
-				clean_record.setYBicSha(yBicSha);
-				clean_record.setYBicPath(yBicPath);
-				clean_record.setKey(key);
-				clean_record.setYBfcSha(yBfcSha);
-				clean_record.setYBfcPath(yBfcPath);
-				clean_record.setYLabel(yLabel);
-				clean_record.setRank(rank);
-				clean_record.setDist(dist);
-				clean_record.setProject(project);
-				clean_record.setYhBicSha(yhBicSha);
-				clean_record.setYhBicPath(yhBicPath);
-				clean_record.setYhBfcSha(yhBfcSha);
-				clean_record.setYhBfcPath(yhBfcPath);
-				clean_record.setYhLabel(yhLabel);
+				SimFinData cleanRecord = new SimFinData();
+				cleanRecord.setYBicSha(yBicSha);
+				cleanRecord.setYBicPath(yBicPath);
+				cleanRecord.setKey(key);
+				cleanRecord.setYBfcSha(yBfcSha);
+				cleanRecord.setYBfcPath(yBfcPath);
+				cleanRecord.setYLabel(yLabel);
+				cleanRecord.setRank(rank);
+				cleanRecord.setDist(dist);
+				cleanRecord.setProject(project);
+				cleanRecord.setYhBicSha(yhBicSha);
+				cleanRecord.setYhBicPath(yhBicPath);
+				cleanRecord.setYhBfcSha(yhBfcSha);
+				cleanRecord.setYhBfcPath(yhBfcPath);
+				cleanRecord.setYhLabel(yhLabel);
 
-				if (clean_data.containsKey(key))
-					clean_data.get(key).add(clean_record);
+				if (cleanData.containsKey(key))
+					cleanData.get(key).add(cleanRecord);
 				else {
 					ArrayList<SimFinData> newSimFinData = new ArrayList<SimFinData>();
-					newSimFinData.add(clean_record);
-					clean_data.put(key, newSimFinData);
+					newSimFinData.add(cleanRecord);
+					cleanData.put(key, newSimFinData);
 				}
 			}
 
-			getTPs(keys, buggy_data, clean_data);
+			getTPs(keys, buggyData, cleanData);
 
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
@@ -699,6 +811,45 @@ public class ResultParser {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		}
+	}
+
+	public static int countLinesOfFile(String filename) throws IOException {
+		InputStream is = new BufferedInputStream(new FileInputStream(filename));
+		try {
+			byte[] c = new byte[1024];
+
+			int readChars = is.read(c);
+			if (readChars == -1) {
+				// bail out if nothing to read
+				return 0;
+			}
+
+			// make it easy for the optimizer to tune this loop
+			int count = 0;
+			while (readChars == 1024) {
+				for (int i = 0; i < 1024;) {
+					if (c[i++] == '\n') {
+						++count;
+					}
+				}
+				readChars = is.read(c);
+			}
+
+			// count remaining characters
+			while (readChars != -1) {
+				System.out.println(readChars);
+				for (int i = 0; i < readChars; ++i) {
+					if (c[i] == '\n') {
+						++count;
+					}
+				}
+				readChars = is.read(c);
+			}
+
+			return count == 0 ? 1 : count;
+		} finally {
+			is.close();
 		}
 	}
 
