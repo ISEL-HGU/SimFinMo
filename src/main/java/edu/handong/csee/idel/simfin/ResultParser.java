@@ -361,7 +361,6 @@ public class ResultParser {
 			int numOfClean = 0;
 			int yLabel = Integer.parseInt(testList.get(i).get(11));
 
-			System.out.print("Test #" + i + "start");
 			// loop through all Ks (# of train instances)
 			for (int j = 0; j < sortedList.size(); j++) {
 				int yhLabel = Integer.parseInt(sortedList.get(j).get(2));
@@ -373,7 +372,6 @@ public class ResultParser {
 					avgBugDist += dist;
 					numOfBug++;
 				}
-				System.out.print(j + " ");
 			}
 			avgCleanDist /= numOfClean;
 			avgBugDist /= numOfBug;
@@ -404,7 +402,6 @@ public class ResultParser {
 					FP++;
 				}
 			}
-			System.out.println("Test #" + i + " complete!");
 		}
 		double precision = TP / ((double) TP + FP);
 		double recall = TP / ((double) TP + FN);
