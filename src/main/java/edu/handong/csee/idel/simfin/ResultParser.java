@@ -48,7 +48,7 @@ public class ResultParser {
 	// ./SimFinMo/ADP/bin/ADP all sentry 0.1 0.0 10 > ./SimFinMo/out/sentry.csv
 	private void runTopAll(String[] args) throws IOException {
 		String projectName = args[1]; // "sentry OR tez"
-		String filePathDist = "./data/jihoshin/" + projectName + "/";
+		String filePathDist = "/data/jihoshin/" + projectName + "/";
 		increment = Double.parseDouble(args[2]);
 		initialCutoff = Double.parseDouble(args[3]);
 		maxCutoff = Double.parseDouble(args[4]);
@@ -333,9 +333,7 @@ public class ResultParser {
 								+ simFinDataBuggy.get(i).getYhBfcPath() + "\n");
 					}
 				}
-
 			}
-
 		}
 	}
 
@@ -404,6 +402,7 @@ public class ResultParser {
 					FP++;
 				}
 			}
+			System.out.println("Test #" + i + " complete!");
 		}
 		double precision = TP / ((double) TP + FP);
 		double recall = TP / ((double) TP + FN);
