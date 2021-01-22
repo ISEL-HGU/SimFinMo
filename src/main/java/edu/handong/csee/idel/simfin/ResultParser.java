@@ -9,6 +9,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,26 +36,26 @@ public class ResultParser {
 
 	public static void main(String[] args) throws IOException {
 		ResultParser np = new ResultParser();
-		if (args[0].equals("combined")) {
-			np.runCombined(args);
+		if (args[0].equals("topk")) {
+			np.runTopK(args);
 		} else if (args[0].equals("divided")) {
 			np.runDivided(args);
 		} else if (args[0].equals("tps")) {
 			np.runTps(args);
-		} else if (args[0].equals("all")) {
-			np.runTopAll(args);
 		} else {
 			System.out.println("No command selected!");
 		}
 	}
 
-	// ./SimFinMo/ADP/bin/ADP all sentry 0.1 0.0 10 > ./SimFinMo/out/sentry.csv
-	private void runTopAll(String[] args) throws IOException {
-		String projectName = args[1]; // "sentry OR tez"
-		String filePathDist = "/data/jihoshin/" + projectName + "/";
-		increment = Double.parseDouble(args[2]);
-		initialCutoff = Double.parseDouble(args[3]);
-		maxCutoff = Double.parseDouble(args[4]);
+	// ./SimFinMo/ADP/bin/ADP topk 1000 sentry 0.1 0.0 10 >
+	// ./SimFinMo/out/sentry.csv
+	private void runTopK(String[] args) throws IOException {
+		int kKneighbor = Integer.parseInt(args[1]);
+		String projectName = args[2]; // "sentry OR tez"
+		String filePathDist = "./data/jihoshin/" + projectName + "/";
+		increment = Double.parseDouble(args[3]);
+		initialCutoff = Double.parseDouble(args[4]);
+		maxCutoff = Double.parseDouble(args[5]);
 
 		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
 		FileReader csvTest = new FileReader(filePathTest);
@@ -62,26 +66,111 @@ public class ResultParser {
 			testList.add(csvIterTest.next());
 		}
 
-		File file = new File(filePathDist);
-		File[] files = file.listFiles(new FileFilter() {
-			@Override
-			public boolean accept(File f) {
-				return f.isDirectory();
+		List<String> files = new ArrayList<>();
+		try {
+			DirectoryStream<Path> directoryStream = Files.newDirectoryStream(Paths.get(filePathDist));
+			for (Path path : directoryStream) {
+				files.add(path.toString());
 			}
-		});
+		} catch (IOException ex) {
+			System.out.println("Directory Stream Exception: " + ex);
+		}
+		int testInstances = files.size() - 1 ;
+
+//		File file = new File(filePathDist);
+//		File[] files = file.listFiles(new FileFilter() {
+//			@Override
+//			public boolean accept(File f) {
+//				return f.isDirectory();
+//			}
+//		});
 
 		// writing the evalated scores
 		System.out.println("cutoff-rank,TP,FN,TN,FP,precision,recall,f1,mcc");
 		for (double cutoff = initialCutoff; cutoff <= maxCutoff; cutoff = cutoff + increment) {
 			System.out.print(cutoff);
 			for (int k = kOffset; k <= maxK; k++) {
-				System.out.print("," + evalAllK(testList, filePathDist, files, cutoff));
+				System.out.print("," + evalAllK(testList, filePathDist, testInstances, cutoff, kKneighbor));
 			}
 			System.out.println();
 		}
 	}
 
+	private String evalAllK(List<CSVRecord> testList, String filePathDist, int testInstances, double cutoff,
+			int kNeighbor) throws IOException {
+		int TP = 0;
+		int TN = 0;
+		int FP = 0;
+		int FN = 0;
+
+		// loop through # of test instance
+		for (int i = 0; i < testInstances; i++) {
+			FileReader csvSorted = new FileReader(filePathDist + "test" + i + "/sorted.csv");
+			Iterable<CSVRecord> recordsSorted = CSVFormat.RFC4180.parse(csvSorted);
+			Iterator<CSVRecord> csvIterSorted = recordsSorted.iterator();
+			List<CSVRecord> sortedList = new ArrayList<CSVRecord>();
+			while (csvIterSorted.hasNext()) {
+				sortedList.add(csvIterSorted.next());
+			}
+
+			double avgBugDist = 0.0;
+			double avgCleanDist = 0.0;
+			int numOfBug = 0;
+			int numOfClean = 0;
+			int yLabel = Integer.parseInt(testList.get(i).get(11));
+
+			// loop through all Ks (# of train instances)
+			for (int j = 0; j < kNeighbor; j++) {
+				int yhLabel = Integer.parseInt(sortedList.get(j).get(2));
+				double dist = Double.parseDouble(sortedList.get(j).get(0));
+				if (yhLabel == 0) {
+					avgCleanDist += dist;
+					numOfClean++;
+				} else if (yhLabel == 1) {
+					avgBugDist += dist;
+					numOfBug++;
+				}
+			}
+			avgCleanDist /= numOfClean;
+			avgBugDist /= numOfBug;
+
+			double distanceRate = avgBugDist / avgCleanDist;
+			if (numOfClean > 0 && numOfBug > 0) {
+				if (yLabel == 1) {
+					if (distanceRate < cutoff)
+						TP++;
+					else
+						FN++;
+				} else {
+					if (distanceRate < cutoff)
+						FP++;
+					else
+						TN++;
+				}
+			} else if (numOfBug == 0) {
+				if (yLabel == 1) {
+					FN++;
+				} else {
+					TN++;
+				}
+			} else {
+				if (yLabel == 1) {
+					TP++;
+				} else {
+					FP++;
+				}
+			}
+		}
+		double precision = TP / ((double) TP + FP);
+		double recall = TP / ((double) TP + FN);
+		double f1 = (2 * precision * recall) / (precision + recall);
+		double mcc = (double) (TP * TN - FP * FN) / (Math.sqrt((double) (TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)));
+
+		return TP + "," + FN + "," + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
+	}
+
 	// ./ADP/bin/ADP combined /data/jihoshin/sentry/ 10 0.01 0.01 1.0
+	@SuppressWarnings("unused")
 	private void runCombined(String[] args) throws IOException {
 		String filePath = args[1]; // "./data/jihoshin/sqoop/"
 		int kNeighbors = Integer.parseInt(args[2]);
@@ -335,80 +424,6 @@ public class ResultParser {
 				}
 			}
 		}
-	}
-
-	private String evalAllK(List<CSVRecord> testList, String filePathDist, File[] files, double cutoff)
-			throws IOException {
-		int TP = 0;
-		int TN = 0;
-		int FP = 0;
-		int FN = 0;
-
-		// loop through # of test instance
-		int instanceNum = files.length;
-		for (int i = 0; i < instanceNum; i++) {
-			FileReader csvSorted = new FileReader(filePathDist + "test" + i + "/sorted.csv");
-			Iterable<CSVRecord> recordsSorted = CSVFormat.RFC4180.parse(csvSorted);
-			Iterator<CSVRecord> csvIterSorted = recordsSorted.iterator();
-			List<CSVRecord> sortedList = new ArrayList<CSVRecord>();
-			while (csvIterSorted.hasNext()) {
-				sortedList.add(csvIterSorted.next());
-			}
-
-			double avgBugDist = 0.0;
-			double avgCleanDist = 0.0;
-			int numOfBug = 0;
-			int numOfClean = 0;
-			int yLabel = Integer.parseInt(testList.get(i).get(11));
-
-			// loop through all Ks (# of train instances)
-			for (int j = 0; j < sortedList.size(); j++) {
-				int yhLabel = Integer.parseInt(sortedList.get(j).get(2));
-				double dist = Double.parseDouble(sortedList.get(j).get(0));
-				if (yhLabel == 0) {
-					avgCleanDist += dist;
-					numOfClean++;
-				} else if (yhLabel == 1) {
-					avgBugDist += dist;
-					numOfBug++;
-				}
-			}
-			avgCleanDist /= numOfClean;
-			avgBugDist /= numOfBug;
-
-			double distanceRate = avgBugDist / avgCleanDist;
-			if (numOfClean > 0 && numOfBug > 0) {
-				if (yLabel == 1) {
-					if (distanceRate < cutoff)
-						TP++;
-					else
-						FN++;
-				} else {
-					if (distanceRate < cutoff)
-						FP++;
-					else
-						TN++;
-				}
-			} else if (numOfBug == 0) {
-				if (yLabel == 1) {
-					FN++;
-				} else {
-					TN++;
-				}
-			} else {
-				if (yLabel == 1) {
-					TP++;
-				} else {
-					FP++;
-				}
-			}
-		}
-		double precision = TP / ((double) TP + FP);
-		double recall = TP / ((double) TP + FN);
-		double f1 = (2 * precision * recall) / (precision + recall);
-		double mcc = (double) (TP * TN - FP * FN) / (Math.sqrt((double) (TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)));
-
-		return TP + "," + FN + "," + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
 	// evaluate by getting the average distance of both buggy and clean
