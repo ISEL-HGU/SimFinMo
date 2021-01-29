@@ -38,11 +38,9 @@ public class ResultParser {
 	public static void main(String[] args) throws IOException {
 		ResultParser np = new ResultParser();
 		if (args[0].equals("topk")) {
-			np.runTopK(args);
+			np.getTopK(args);
 		} else if (args[0].equals("divided")) {
-			np.runDivided(args);
-		} else if (args[0].equals("avgdist")) {
-			np.getAvgDist(args);
+			np.runDivided(args); 
 		} else if (args[0].equals("tps")) {
 			np.runTps(args);
 		} else {
@@ -50,12 +48,15 @@ public class ResultParser {
 		}
 	}
 
-	// ./SimFinMo/ADP/bin/ADP avgdist 1000 sentry
-	private void getAvgDist(String[] args) throws IOException {
+	// ./SimFinMo/ADP/bin/ADP topk 1000 sentry 0.001 0.9 1.1 > ./SimFinMo/out/sentry.csv
+	private void getTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
 		String projectName = args[2]; // "sentry OR tez"
-		String filePathDist = "/data/jihoshin/" + projectName + "/";
+		String filePathDist = "./data/jihoshin/" + projectName + "/";
 		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
+		increment = Double.parseDouble(args[3]);
+		initialCutoff = Double.parseDouble(args[4]);
+		maxCutoff = Double.parseDouble(args[5]);
 
 		BufferedReader inputStreamTest = new BufferedReader(new FileReader(filePathTest));
 		Iterable<CSVRecord> recordsTest = CSVFormat.RFC4180.parse(inputStreamTest);
@@ -76,6 +77,8 @@ public class ResultParser {
 			System.out.println("Directory Stream Exception: " + ex);
 		}
 		int testInstances = files.size() - 1;
+
+		ArrayList<Double> distanceRatios = new ArrayList<Double>();
 
 		// loop through test instance folders
 		for (int i = 0; i < testInstances; i++) {
@@ -111,12 +114,51 @@ public class ResultParser {
 			avgBugDist /= numOfBug;
 			avgCleanDist /= numOfClean;
 			double distanceRate = avgBugDist / avgCleanDist;
-			System.out.println("DR," + distanceRate);
+			// System.out.println("DR," + distanceRate);
+			distanceRatios.add(distanceRate);
 		}
+
+		// writing the evalated scores
+		System.out.println("cutoff-rank,TP,FN,TN,FP,precision,recall,f1,mcc");
+		for (double cutoff = initialCutoff; cutoff <= maxCutoff; cutoff = cutoff + increment) {
+			System.out.print(cutoff);
+			for (int k = kOffset; k <= maxK; k++) {
+				System.out.print("," + evalFromDRs(distanceRatios, testList, cutoff));
+			}
+			System.out.println();
+		}
+	}
+
+	private String evalFromDRs(ArrayList<Double> drs, List<CSVRecord> testList, double cutoff) {
+		int TP = 0, FP = 0, TN = 0, FN = 0;
+
+		for (int i = 0; i < drs.size(); i++) {
+			int yLabel = Integer.parseInt(testList.get(i).get(11));
+			if (yLabel == 1) {
+				if (drs.get(i) < cutoff)
+					TP++;
+				else
+					FN++;
+			} else {
+				if (drs.get(i) < cutoff)
+					FP++;
+				else
+					TN++;
+			}
+
+		}
+
+		double precision = TP / ((double) TP + FP);
+		double recall = TP / ((double) TP + FN);
+		double f1 = (2 * precision * recall) / (precision + recall);
+		double mcc = (double) (TP * TN - FP * FN) / (Math.sqrt((double) (TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)));
+
+		return TP + "," + FN + "," + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
 	// ./SimFinMo/ADP/bin/ADP topk 1000 sentry 0.1 0.5 1.5 >
 	// ./SimFinMo/out/sentry.csv
+	@SuppressWarnings("unused")
 	private void runTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
 		String projectName = args[2]; // "sentry OR tez"
