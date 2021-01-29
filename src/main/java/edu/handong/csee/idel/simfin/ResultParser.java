@@ -1,6 +1,7 @@
 package edu.handong.csee.idel.simfin;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
@@ -40,6 +41,8 @@ public class ResultParser {
 			np.runTopK(args);
 		} else if (args[0].equals("divided")) {
 			np.runDivided(args);
+		} else if (args[0].equals("avgdist")) {
+			np.getAvgDist(args);
 		} else if (args[0].equals("tps")) {
 			np.runTps(args);
 		} else {
@@ -47,7 +50,72 @@ public class ResultParser {
 		}
 	}
 
-	// ./SimFinMo/ADP/bin/ADP topk 1000 sentry 0.1 0.0 10 >
+	// ./SimFinMo/ADP/bin/ADP avgdist 1000 sentry
+	private void getAvgDist(String[] args) throws IOException {
+		int kKneighbor = Integer.parseInt(args[1]);
+		String projectName = args[2]; // "sentry OR tez"
+		String filePathDist = "/data/jihoshin/" + projectName + "/";
+		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
+
+		BufferedReader inputStreamTest = new BufferedReader(new FileReader(filePathTest));
+		Iterable<CSVRecord> recordsTest = CSVFormat.RFC4180.parse(inputStreamTest);
+		Iterator<CSVRecord> csvIterTest = recordsTest.iterator();
+		List<CSVRecord> testList = new ArrayList<CSVRecord>();
+		while (csvIterTest.hasNext()) {
+			testList.add(csvIterTest.next());
+		}
+
+		// Getting number of test instances by counting folders in the directory
+		List<String> files = new ArrayList<>();
+		try {
+			DirectoryStream<Path> directoryStream = Files.newDirectoryStream(Paths.get(filePathDist));
+			for (Path path : directoryStream) {
+				files.add(path.toString());
+			}
+		} catch (IOException ex) {
+			System.out.println("Directory Stream Exception: " + ex);
+		}
+		int testInstances = files.size() - 1;
+
+		// loop through test instance folders
+		for (int i = 0; i < testInstances; i++) {
+
+			BufferedReader inputStreamSort = new BufferedReader(
+					new FileReader(filePathDist + "test" + i + "/sorted.csv"));
+			Iterable<CSVRecord> recordsSorted = CSVFormat.RFC4180.parse(inputStreamSort);
+
+			double avgBugDist = 0;
+			double avgCleanDist = 0;
+			int numOfBug = 0;
+			int numOfClean = 0;
+
+			// loop through top Ks in the sorted file
+			int counter = 0;
+			for (CSVRecord test : recordsSorted) {
+				if (counter > kKneighbor)
+					break;
+
+				int yhLabel = Integer.parseInt(test.get(2));
+				double dist = Double.parseDouble(test.get(0));
+
+				if (yhLabel == 0) {
+					avgCleanDist += dist;
+					numOfClean++;
+				} else {
+					avgBugDist += dist;
+					numOfBug++;
+				}
+
+				counter++;
+			}
+			avgBugDist /= numOfBug;
+			avgCleanDist /= numOfClean;
+			double distanceRate = avgBugDist / avgCleanDist;
+			System.out.println("DR," + distanceRate);
+		}
+	}
+
+	// ./SimFinMo/ADP/bin/ADP topk 1000 sentry 0.1 0.5 1.5 >
 	// ./SimFinMo/out/sentry.csv
 	private void runTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
@@ -75,7 +143,7 @@ public class ResultParser {
 		} catch (IOException ex) {
 			System.out.println("Directory Stream Exception: " + ex);
 		}
-		int testInstances = files.size() - 1 ;
+		int testInstances = files.size() - 1;
 
 //		File file = new File(filePathDist);
 //		File[] files = file.listFiles(new FileFilter() {
@@ -90,13 +158,13 @@ public class ResultParser {
 		for (double cutoff = initialCutoff; cutoff <= maxCutoff; cutoff = cutoff + increment) {
 			System.out.print(cutoff);
 			for (int k = kOffset; k <= maxK; k++) {
-				System.out.print("," + evalAllK(testList, filePathDist, testInstances, cutoff, kKneighbor));
+				System.out.print("," + evalTopK(testList, filePathDist, testInstances, cutoff, kKneighbor));
 			}
 			System.out.println();
 		}
 	}
 
-	private String evalAllK(List<CSVRecord> testList, String filePathDist, int testInstances, double cutoff,
+	private String evalTopK(List<CSVRecord> testList, String filePathDist, int testInstances, double cutoff,
 			int kNeighbor) throws IOException {
 		int TP = 0;
 		int TN = 0;
