@@ -40,7 +40,7 @@ public class ResultParser {
 		if (args[0].equals("topk")) {
 			np.getTopK(args);
 		} else if (args[0].equals("divided")) {
-			np.runDivided(args); 
+			np.runDivided(args);
 		} else if (args[0].equals("tps")) {
 			np.runTps(args);
 		} else {
@@ -48,7 +48,8 @@ public class ResultParser {
 		}
 	}
 
-	// ./SimFinMo/ADP/bin/ADP topk 1000 sentry 0.001 0.9 1.1 > ./SimFinMo/out/sentry.csv
+	// ./SimFinMo/ADP/bin/ADP topk 1000 sentry 0.001 0.9 1.1 >
+	// ./SimFinMo/out/sentry.csv
 	private void getTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
 		String projectName = args[2]; // "sentry OR tez"
@@ -156,8 +157,6 @@ public class ResultParser {
 		return TP + "," + FN + "," + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
-	// ./SimFinMo/ADP/bin/ADP topk 1000 sentry 0.1 0.5 1.5 >
-	// ./SimFinMo/out/sentry.csv
 	@SuppressWarnings("unused")
 	private void runTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
@@ -186,14 +185,6 @@ public class ResultParser {
 			System.out.println("Directory Stream Exception: " + ex);
 		}
 		int testInstances = files.size() - 1;
-
-//		File file = new File(filePathDist);
-//		File[] files = file.listFiles(new FileFilter() {
-//			@Override
-//			public boolean accept(File f) {
-//				return f.isDirectory();
-//			}
-//		});
 
 		// writing the evalated scores
 		System.out.println("cutoff-rank,TP,FN,TN,FP,precision,recall,f1,mcc");
@@ -299,7 +290,7 @@ public class ResultParser {
 		});
 		int instanceNum = files.length;
 		HashMap<String, ArrayList<SimFinData>> allData = new HashMap<String, ArrayList<SimFinData>>();
-//		System.out.println("Test Instance Numbers: " + instanceNum);
+		// System.out.println("Test Instance Numbers: " + instanceNum);
 
 		// iterate every num of test instance numbers == num of folders.
 		for (int j = 0; j < instanceNum; j++) {
@@ -494,8 +485,6 @@ public class ResultParser {
 				System.out.print(cutoff);
 				for (int k = kOffset; k <= maxK; k++) {
 					System.out.print("," + evaluateDivided(keys, buggyData, cleanData, kOffset, k, cutoff));
-//					 System.out.print("," + evaluateClean(keys, cleanData, kOffset, k, cutoff));
-//					 System.out.print("," + evaluateBuggy(keys, buggyData, kOffset, k, cutoff));
 				}
 				System.out.println();
 			}
@@ -725,92 +714,6 @@ public class ResultParser {
 		return TP + ", " + FN + ", " + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
-//	private String evaluateBuggy(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset,
-//			int k, double cutoff) {
-//
-//		int TP = 0; // 1 -> 1
-//		int FP = 0; // 0 -> 1
-//		int TN = 0; // 0 -> 0
-//		int FN = 0; // 1 -> 0
-//
-//		for (String key : keys) {
-//
-//			ArrayList<SimFinData> simFinData = data.get(key);
-//			double averagDistance = averageDistance(simFinData, kOffset, k);
-//
-//			int label = simFinData.get(0).getLabel();
-//
-//			if (label == 1) {
-//				if (averagDistance < cutoff)
-//					TP++;
-//				else
-//					FN++;
-//			} else {
-//				if (averagDistance < cutoff)
-//					FP++;
-//				else
-//					TN++;
-//			}
-//
-//		}
-//
-//		double precision = TP / ((double) TP + FP);
-//		double recall = TP / ((double) TP + FN);
-//		double f1 = (2 * precision * recall) / (precision + recall);
-//		double mcc = (double) (TP * TN - FP * FN) / (Math.sqrt((double) (TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)));
-//		double TPR = TP / ((double) TP + FN);
-//		double FPR = FP / ((double) FP + TN);
-//
-//		getTPR(TPR);
-//		getFPR(FPR);
-//
-//		return TP + "," + FP + "," + FN + "," + TN + "," + precision + "," + recall + "," + f1 + "," + mcc + "," + TPR
-//				+ "," + FPR;
-//	}
-
-//	private String evaluateClean(ArrayList<String> keys, HashMap<String, ArrayList<SimFinData>> data, int kOffset,
-//			int k, double cutoff) {
-//
-//		int TP = 0; // 1 -> 1
-//		int FP = 0; // 0 -> 1
-//		int TN = 0; // 0 -> 0
-//		int FN = 0; // 1 -> 0
-//
-//		for (String key : keys) {
-//
-//			ArrayList<SimFinData> simFinData = data.get(key);
-//			double averagDistance = averageDistance(simFinData, kOffset, k);
-//
-//			int label = simFinData.get(0).getLabel();
-//
-//			if (label == 1) {
-//				if (averagDistance > cutoff)
-//					TP++;
-//				else
-//					FN++;
-//			} else {
-//				if (averagDistance > cutoff)
-//					FP++;
-//				else
-//					TN++;
-//			}
-//
-//		}
-//
-//		double precision = TP / ((double) TP + FP);
-//		double recall = TP / ((double) TP + FN);
-//		double f1 = (2 * precision * recall) / (precision + recall);
-//		double mcc = (double) (TP * TN - FP * FN) / (Math.sqrt((double) (TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)));
-//		double TPR = TP / ((double) TP + FN);
-//		double FPR = FP / ((double) FP + TN);
-//
-//		getTPR(TPR);
-//		getFPR(FPR);
-//
-//		return TP + "," + FP + "," + FN + "," + TN + "," + precision + "," + recall + "," + f1 + "," + mcc + "," + TPR
-//				+ "," + FPR;
-//	}
-
 	private void runTps(String[] args) {
 		String resultFilePath = args[0]; // "data" + File.separator + folder + File.separator + "maven_result.csv";
 		String projectName = args[1];
@@ -976,22 +879,23 @@ public class ResultParser {
 		}
 	}
 
-//	private double averageDistance(ArrayList<SimFinData> simFinData, int kOffset, int k, boolean isBuggyDataIterating) {
-//		int label = simFinData.get(0).getYLabel();
-//		double sum = 0.0;
-//		// kOffset = 2 // k = 2
-////		try {
-//		if ((isBuggyDataIterating && label == 0) || (!isBuggyDataIterating && label == 1)) {
-//			kOffset = 1;
-//			k = k - 1;
+	@SuppressWarnings("unused")
+	private double averageDistance(ArrayList<SimFinData> simFinData, int kOffset, int k, boolean isBuggyDataIterating) {
+		int label = simFinData.get(0).getYLabel();
+		double sum = 0.0;
+		// kOffset = 2 // k = 2
+//		try {
+		if ((isBuggyDataIterating && label == 0) || (!isBuggyDataIterating && label == 1)) {
+			kOffset = 1;
+			k = k - 1;
+		}
+		for (int i = kOffset - 1; i < k; i++) {
+			sum = sum + simFinData.get(i).getDist();
+		}
+//		} catch (Exception e) {
+//			System.out.println(simFinData.get(0).getKey());
 //		}
-//		for (int i = kOffset - 1; i < k; i++) {
-//			sum = sum + simFinData.get(i).getDist();
-//		}
-////		} catch (Exception e) {
-////			System.out.println(simFinData.get(0).getKey());
-////		}
-//		return sum / (k - kOffset + 1);
-//	}
+		return sum / (k - kOffset + 1);
+	}
 
 }
