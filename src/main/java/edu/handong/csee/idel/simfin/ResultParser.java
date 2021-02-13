@@ -52,12 +52,13 @@ public class ResultParser {
 	// ./SimFinMo/out/sentry.csv
 	private void getTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
-		String projectName = args[2]; // "sentry OR tez"
-		String filePathDist = "./data/jihoshin/" + projectName + "/";
+		String versionName = args[2];
+		String projectName = args[3]; // "sentry OR tez"
+		String filePathDist = "/data/jihoshin/" + versionName + "/" + projectName + "/";
 		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
-		increment = Double.parseDouble(args[3]);
-		initialCutoff = Double.parseDouble(args[4]);
-		maxCutoff = Double.parseDouble(args[5]);
+		increment = Double.parseDouble(args[4]);
+		initialCutoff = Double.parseDouble(args[5]);
+		maxCutoff = Double.parseDouble(args[6]);
 
 		BufferedReader inputStreamTest = new BufferedReader(new FileReader(filePathTest));
 		Iterable<CSVRecord> recordsTest = CSVFormat.RFC4180.parse(inputStreamTest);
@@ -161,7 +162,7 @@ public class ResultParser {
 	private void runTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
 		String projectName = args[2]; // "sentry OR tez"
-		String filePathDist = "./data/jihoshin/" + projectName + "/";
+		String filePathDist = "/data/jihoshin/" + projectName + "/";
 		increment = Double.parseDouble(args[3]);
 		initialCutoff = Double.parseDouble(args[4]);
 		maxCutoff = Double.parseDouble(args[5]);
@@ -273,7 +274,7 @@ public class ResultParser {
 	// ./ADP/bin/ADP combined /data/jihoshin/sentry/ 10 0.01 0.01 1.0
 	@SuppressWarnings("unused")
 	private void runCombined(String[] args) throws IOException {
-		String filePath = args[1]; // "./data/jihoshin/sqoop/"
+		String filePath = args[1]; // "/data/jihoshin/sqoop/"
 		int kNeighbors = Integer.parseInt(args[2]);
 		if (kNeighbors > 100)
 			kNeighbors = 100;
