@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -43,13 +44,92 @@ public class ResultParser {
 			np.runDivided(args);
 		} else if (args[0].equals("tps")) {
 			np.runTps(args);
+		} else if(args[1].equals("simple")) {
+			np.runSimple(args);
 		} else {
 			System.out.println("No command selected!");
 		}
 	}
 
-	// ./SimFinMo/ADP/bin/ADP topk 1000 sentry 0.001 0.9 1.1 >
-	// ./SimFinMo/out/sentry.csv
+	// ./SimFinMo/ADP/bin/ADP simple 50 preprocessed sentry 0.001 0.9 1.1 > ./SimFinMo/out/sentry.csv
+	private void runSimple(String[] args) throws IOException {
+		int kKneighbor = Integer.parseInt(args[1]);
+		String versionName = args[2];
+		String projectName = args[3]; // "sentry OR tez"
+		String filePathDist = "/data/jihoshin/" + versionName + "/" + projectName + "/";
+		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
+		increment = Double.parseDouble(args[4]);
+		initialCutoff = Double.parseDouble(args[5]);
+		maxCutoff = Double.parseDouble(args[6]);
+
+		// Reading Y_projectName.csv
+		BufferedReader inputStreamTest = new BufferedReader(new FileReader(filePathTest));
+		Iterable<CSVRecord> recordsTest = CSVFormat.RFC4180.parse(inputStreamTest);
+		Iterator<CSVRecord> csvIterTest = recordsTest.iterator();
+		List<CSVRecord> testList = new ArrayList<CSVRecord>();
+		
+		while (csvIterTest.hasNext()) {
+			testList.add(csvIterTest.next());
+		}
+		List<Boolean> containsBuggy = new ArrayList<>(Collections.nCopies(testList.size(), false));
+		for (int i = 0; i < testList.size(); i++){
+			BufferedReader inputStreamSort = new BufferedReader(new FileReader(filePathDist + "test" + i + "/sorted.csv"));
+			Iterable<CSVRecord> recordsSorted = CSVFormat.RFC4180.parse(inputStreamSort);
+			
+			int counter = 0;
+			for (CSVRecord test : recordsSorted){
+				if (counter > kKneighbor) break;
+				
+				int yhLabel = Integer.parseInt(test.get(2));
+
+				if (yhLabel == 1){
+					containsBuggy.set(counter, true);
+					break;
+				}
+
+				counter++;
+			}
+		}
+
+		// writing the evalated scores
+		System.out.println("cutoff-rank,TP,FN,TN,FP,precision,recall,f1,mcc");
+		for (double cutoff = initialCutoff; cutoff <= maxCutoff; cutoff = cutoff + increment) {
+			System.out.print(cutoff);
+			for (int k = kOffset; k <= maxK; k++) {
+				System.out.print("," + evalSimple(testList, cutoff, kKneighbor, containsBuggy));
+			}
+			System.out.println();
+		}
+	}
+
+	private String evalSimple(List<CSVRecord> testList, double cutoff, int kNeighbor, List<Boolean> containsBuggy) {
+		int TP = 0, FP = 0, TN = 0, FN = 0;
+
+		for (int i = 0; i < testList.size(); i++) {
+			int yLabel = Integer.parseInt(testList.get(i).get(11));
+			if (yLabel == 1) {
+				if (containsBuggy.get(i))
+					TP++;
+				else
+					FN++;
+			} else {
+				if (containsBuggy.get(i))
+					FP++;
+				else
+					TN++;
+			}
+
+		}
+
+		double precision = TP / ((double) TP + FP);
+		double recall = TP / ((double) TP + FN);
+		double f1 = (2 * precision * recall) / (precision + recall);
+		double mcc = (double) (TP * TN - FP * FN) / (Math.sqrt((double) (TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)));
+
+		return TP + "," + FN + "," + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
+	}
+
+	// ./SimFinMo/ADP/bin/ADP topk 1000 preprocessed sentry 0.001 0.9 1.1 > ./SimFinMo/out/sentry.csv
 	private void getTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
 		String versionName = args[2];
