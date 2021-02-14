@@ -44,23 +44,22 @@ public class ResultParser {
 			np.runDivided(args);
 		} else if (args[0].equals("tps")) {
 			np.runTps(args);
-		} else if(args[1].equals("simple")) {
+		} else if(args[0].equals("simple")) {
 			np.runSimple(args);
 		} else {
 			System.out.println("No command selected!");
 		}
 	}
 
-	// ./SimFinMo/ADP/bin/ADP simple 50 preprocessed sentry 0.001 0.9 1.1 > ./SimFinMo/out/sentry.csv
+	// ./SimFinMo/ADP/bin/ADP simple preprocessed sentry > ./SimFinMo/out/sentry_simple.csv
 	private void runSimple(String[] args) throws IOException {
-		int kKneighbor = Integer.parseInt(args[1]);
-		String versionName = args[2];
-		String projectName = args[3]; // "sentry OR tez"
+		String versionName = args[1];
+		String projectName = args[2]; // "sentry OR tez"
 		String filePathDist = "/data/jihoshin/" + versionName + "/" + projectName + "/";
 		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
-		increment = Double.parseDouble(args[4]);
-		initialCutoff = Double.parseDouble(args[5]);
-		maxCutoff = Double.parseDouble(args[6]);
+		int incrementK = 1;
+		int initialK = 1;
+		int maxK = 100;
 
 		// Reading Y_projectName.csv
 		BufferedReader inputStreamTest = new BufferedReader(new FileReader(filePathTest));
@@ -78,7 +77,7 @@ public class ResultParser {
 			
 			int counter = 0;
 			for (CSVRecord test : recordsSorted){
-				if (counter > kKneighbor) break;
+				if (counter > maxK) break;
 				
 				int yhLabel = Integer.parseInt(test.get(2));
 
@@ -92,17 +91,17 @@ public class ResultParser {
 		}
 
 		// writing the evalated scores
-		System.out.println("cutoff-rank,TP,FN,TN,FP,precision,recall,f1,mcc");
-		for (double cutoff = initialCutoff; cutoff <= maxCutoff; cutoff = cutoff + increment) {
-			System.out.print(cutoff);
+		System.out.println("k-rank,TP,FN,TN,FP,precision,recall,f1,mcc");
+		for (int currentK = initialK; currentK <= maxK; currentK = currentK + incrementK) {
+			System.out.print(currentK);
 			for (int k = kOffset; k <= maxK; k++) {
-				System.out.print("," + evalSimple(testList, cutoff, kKneighbor, containsBuggy));
+				System.out.print("," + evalSimple(testList, currentK, containsBuggy));
 			}
 			System.out.println();
 		}
 	}
 
-	private String evalSimple(List<CSVRecord> testList, double cutoff, int kNeighbor, List<Boolean> containsBuggy) {
+	private String evalSimple(List<CSVRecord> testList, int kNeighbor, List<Boolean> containsBuggy) {
 		int TP = 0, FP = 0, TN = 0, FN = 0;
 
 		for (int i = 0; i < testList.size(); i++) {
