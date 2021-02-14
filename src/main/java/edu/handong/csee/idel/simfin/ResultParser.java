@@ -44,63 +44,76 @@ public class ResultParser {
 			np.runDivided(args);
 		} else if (args[0].equals("tps")) {
 			np.runTps(args);
-		} else if(args[0].equals("simple")) {
+		} else if (args[0].equals("simple")) {
 			np.runSimple(args);
 		} else {
 			System.out.println("No command selected!");
 		}
 	}
 
-	// ./SimFinMo/ADP/bin/ADP simple preprocessed sentry > ./SimFinMo/out/sentry_simple.csv
+	// ./SimFinMo/ADP/bin/ADP simple preprocessed sentry >
+	// ./SimFinMo/out/sentry_simple.csv
 	private void runSimple(String[] args) throws IOException {
 		String versionName = args[1];
 		String projectName = args[2]; // "sentry OR tez"
-		String filePathDist = "/data/jihoshin/" + versionName + "/" + projectName + "/";
+		String filePathDist = "./data/jihoshin/" + versionName + "/" + projectName + "/";
 		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
 		int incrementK = 1;
 		int initialK = 1;
-		int maxK = 1000;
+		int maximumK = 1000;
 
 		// Reading Y_projectName.csv
 		BufferedReader inputStreamTest = new BufferedReader(new FileReader(filePathTest));
 		Iterable<CSVRecord> recordsTest = CSVFormat.RFC4180.parse(inputStreamTest);
 		Iterator<CSVRecord> csvIterTest = recordsTest.iterator();
 		List<CSVRecord> testList = new ArrayList<CSVRecord>();
-		
+
 		while (csvIterTest.hasNext()) {
 			testList.add(csvIterTest.next());
 		}
 
-		ArrayList<ArrayList<Boolean>> containsBug = new ArrayList<ArrayList<Boolean>>();
-		for(int i = 0; i < testList.size(); i++){
-			containsBug.add(new ArrayList<>(Collections.nCopies(maxK, false)));
+		ArrayList<ArrayList<Boolean>> containsBuggy = new ArrayList<ArrayList<Boolean>>();
 
-		}
-		for (int i = 0; i < testList.size(); i++){
+		// iterate through test instance folders and read sorted.csv
+		for (int i = 0; i < testList.size(); i++) {
+			BufferedReader inputStreamSort = new BufferedReader(
+					new FileReader(filePathDist + "test" + i + "/sorted.csv"));
 
-			BufferedReader inputStreamSort = new BufferedReader(new FileReader(filePathDist + "test" + i + "/sorted.csv"));
 			Iterable<CSVRecord> recordsSorted = CSVFormat.RFC4180.parse(inputStreamSort);
-			
+
+			ArrayList<Boolean> oneTestOfBoolArray = new ArrayList<Boolean>();
+
+			// iterate through the sorted.csv until maxK
 			int counter = 0;
-			for (CSVRecord test : recordsSorted){
-				if (counter > maxK) break;
-				
+			for (CSVRecord test : recordsSorted) {
+				if (counter > maximumK)
+					break;
+
 				int yhLabel = Integer.parseInt(test.get(2));
 
-				if (yhLabel == 1){
-					containsBug.get(counter).set(counter, true);
-					break;
+				if (yhLabel == 1) {
+					oneTestOfBoolArray.add(true);
+				} else {
+					oneTestOfBoolArray.add(false);
 				}
 
 				counter++;
 			}
+			containsBuggy.add(oneTestOfBoolArray);
 		}
+
+//		for (int i = 0; i < testList.size(); i++) {
+//			for (int j = 0; j < maximumK; j++) {
+//				System.out.print(containsBuggy.get(i).get(j) + " ");
+//			}
+//			System.out.println();
+//		}
 
 		// writing the evalated scores
 		System.out.println("k-rank,TP,FN,TN,FP,precision,recall,f1,mcc");
-		for (int currentK = initialK; currentK <= maxK; currentK = currentK + incrementK) {
+		for (int currentK = initialK; currentK <= maximumK; currentK = currentK + incrementK) {
 			System.out.print(currentK);
-			System.out.print("," + evalSimple(testList, currentK, containsBug));
+			System.out.print("," + evalSimple(testList, currentK, containsBuggy));
 			System.out.println();
 		}
 	}
@@ -110,19 +123,19 @@ public class ResultParser {
 
 		for (int i = 0; i < testList.size(); i++) {
 			int yLabel = Integer.parseInt(testList.get(i).get(11));
-			for (int j = 0; j < containsBug.get(0).size(); j++){
-				if (yLabel == 1) {
-					if (containsBug.get(i).get(j))
-						TP++;
-					else
-						FN++;
-				} else {
-					if (containsBug.get(i).get(j))
-						FP++;
-					else
-						TN++;
-				}
+
+			if (yLabel == 1) {
+				if (containsBug.get(i).get(kNeighbor))
+					TP++;
+				else
+					FN++;
+			} else {
+				if (containsBug.get(i).get(kNeighbor))
+					FP++;
+				else
+					TN++;
 			}
+
 		}
 
 		double precision = TP / ((double) TP + FP);
@@ -133,7 +146,8 @@ public class ResultParser {
 		return TP + "," + FN + "," + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
-	// ./SimFinMo/ADP/bin/ADP topk 1000 preprocessed sentry 0.001 0.9 1.1 > ./SimFinMo/out/sentry.csv
+	// ./SimFinMo/ADP/bin/ADP topk 1000 preprocessed sentry 0.001 0.9 1.1 >
+	// ./SimFinMo/out/sentry.csv
 	private void getTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
 		String versionName = args[2];
