@@ -59,7 +59,7 @@ public class ResultParser {
 		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
 		int incrementK = 1;
 		int initialK = 1;
-		int maxK = 100;
+		int maxK = 1000;
 
 		// Reading Y_projectName.csv
 		BufferedReader inputStreamTest = new BufferedReader(new FileReader(filePathTest));
@@ -72,8 +72,8 @@ public class ResultParser {
 		}
 
 		ArrayList<ArrayList<Boolean>> containsBug = new ArrayList<ArrayList<Boolean>>();
-		for(int i = 0; i < maxK; i++){
-			containsBug.add(new ArrayList<>(Collections.nCopies(testList.size(), false)));
+		for(int i = 0; i < testList.size(); i++){
+			containsBug.add(new ArrayList<>(Collections.nCopies(maxK, false)));
 
 		}
 		for (int i = 0; i < testList.size(); i++){
