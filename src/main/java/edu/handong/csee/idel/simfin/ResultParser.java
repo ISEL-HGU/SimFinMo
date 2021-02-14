@@ -70,8 +70,14 @@ public class ResultParser {
 		while (csvIterTest.hasNext()) {
 			testList.add(csvIterTest.next());
 		}
-		List<Boolean> containsBuggy = new ArrayList<>(Collections.nCopies(testList.size(), false));
+
+		ArrayList<ArrayList<Boolean>> containsBug = new ArrayList<ArrayList<Boolean>>();
+		for(int i = 0; i < maxK; i++){
+			containsBug.add(new ArrayList<>(Collections.nCopies(testList.size(), false)));
+
+		}
 		for (int i = 0; i < testList.size(); i++){
+
 			BufferedReader inputStreamSort = new BufferedReader(new FileReader(filePathDist + "test" + i + "/sorted.csv"));
 			Iterable<CSVRecord> recordsSorted = CSVFormat.RFC4180.parse(inputStreamSort);
 			
@@ -82,7 +88,7 @@ public class ResultParser {
 				int yhLabel = Integer.parseInt(test.get(2));
 
 				if (yhLabel == 1){
-					containsBuggy.set(counter, true);
+					containsBug.get(counter).set(counter, true);
 					break;
 				}
 
@@ -94,30 +100,29 @@ public class ResultParser {
 		System.out.println("k-rank,TP,FN,TN,FP,precision,recall,f1,mcc");
 		for (int currentK = initialK; currentK <= maxK; currentK = currentK + incrementK) {
 			System.out.print(currentK);
-			for (int k = kOffset; k <= maxK; k++) {
-				System.out.print("," + evalSimple(testList, currentK, containsBuggy));
-			}
+			System.out.print("," + evalSimple(testList, currentK, containsBug));
 			System.out.println();
 		}
 	}
 
-	private String evalSimple(List<CSVRecord> testList, int kNeighbor, List<Boolean> containsBuggy) {
+	private String evalSimple(List<CSVRecord> testList, int kNeighbor, ArrayList<ArrayList<Boolean>> containsBug) {
 		int TP = 0, FP = 0, TN = 0, FN = 0;
 
 		for (int i = 0; i < testList.size(); i++) {
 			int yLabel = Integer.parseInt(testList.get(i).get(11));
-			if (yLabel == 1) {
-				if (containsBuggy.get(i))
-					TP++;
-				else
-					FN++;
-			} else {
-				if (containsBuggy.get(i))
-					FP++;
-				else
-					TN++;
+			for (int j = 0; j < containsBug.get(0).size(); j++){
+				if (yLabel == 1) {
+					if (containsBug.get(i).get(j))
+						TP++;
+					else
+						FN++;
+				} else {
+					if (containsBug.get(i).get(j))
+						FP++;
+					else
+						TN++;
+				}
 			}
-
 		}
 
 		double precision = TP / ((double) TP + FP);
