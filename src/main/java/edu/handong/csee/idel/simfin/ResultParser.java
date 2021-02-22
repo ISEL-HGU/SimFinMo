@@ -51,12 +51,11 @@ public class ResultParser {
 		}
 	}
 
-	// ./SimFinMo/ADP/bin/ADP simple preprocessed sentry >
-	// ./SimFinMo/out/sentry_simple.csv
+	// ./SimFinMo/ADP/bin/ADP simple rm_dups sqoop > ./SimFinMo/out/sqoop_dups_simple.csv
 	private void runSimple(String[] args) throws IOException {
 		String versionName = args[1];
 		String projectName = args[2]; // "sentry OR tez"
-		String filePathDist = "./data/jihoshin/" + versionName + "/" + projectName + "/";
+		String filePathDist = "/data/jihoshin/" + versionName + "/" + projectName + "/";
 		String filePathTest = "./output/testset/Y_" + projectName + ".csv";
 		int incrementK = 1;
 		int initialK = 1;
@@ -146,8 +145,7 @@ public class ResultParser {
 		return TP + "," + FN + "," + TN + "," + FP + "," + precision + "," + recall + "," + f1 + "," + mcc;
 	}
 
-	// ./SimFinMo/ADP/bin/ADP topk 1000 preprocessed sentry 0.001 0.9 1.1 >
-	// ./SimFinMo/out/sentry.csv
+	// ./SimFinMo/ADP/bin/ADP topk 1000 rm_dups sqoop 0.001 0.9 1.1 > ./SimFinMo/out/sqoop_dups_avg.csv
 	private void getTopK(String[] args) throws IOException {
 		int kKneighbor = Integer.parseInt(args[1]);
 		String versionName = args[2];
